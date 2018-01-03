@@ -1,6 +1,6 @@
 module Main where
 
-import Lib
+import Seer
 
 main :: IO ()
 main = someFunc

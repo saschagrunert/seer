@@ -1,5 +1,5 @@
 # seer 🔮
-[![Build Status](https://travis-ci.org/saschagrunert/seer.svg)](https://travis-ci.org/saschagrunert/seer) [![Build status](https://ci.appveyor.com/api/projects/status/1bjn2k6rjlsldu0b?svg=true)](https://ci.appveyor.com/project/saschagrunert/seer) [![License MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/saschagrunert/seer/blob/master/LICENSE) [![Development Status](https://img.shields.io/badge/status-in%20development-yellow.svg)](#about)
+[![Build Status](https://travis-ci.org/saschagrunert/seer.svg)](https://travis-ci.org/saschagrunert/seer) [![Build status](https://ci.appveyor.com/api/projects/status/1bjn2k6rjlsldu0b?svg=true)](https://ci.appveyor.com/project/saschagrunert/seer) [![Coverage Status](https://coveralls.io/repos/github/saschagrunert/seer/badge.svg?branch=master)](https://coveralls.io/github/saschagrunert/seer?branch=master) [![License MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/saschagrunert/seer/blob/master/LICENSE) [![Development Status](https://img.shields.io/badge/status-in%20development-yellow.svg)](#about)
 
 ## A collaborative product vision, roadmap and resource planning tool
 

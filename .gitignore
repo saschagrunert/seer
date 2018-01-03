@@ -8,6 +8,7 @@
 *.hp
 *.o
 *.prof
+*.swp
 *~
 .HTF/
 .cabal-sandbox/

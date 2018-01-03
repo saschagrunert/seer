@@ -6,7 +6,8 @@ license: MIT
 author: "Sascha Grunert"
 maintainer: "mail@saschagrunert.de"
 copyright: "Copyright (c) 2018 Sascha Grunert"
-tested-with: GHC == 7.8.4, GHC == 7.10.2, GHC == 7.10.3, GHC == 8.0.2, GHC == 8.2.2
+tested-with: GHC == 7.10.2, GHC == 7.10.3,
+  GHC == 8.0.2, GHC == 8.2.2
 
 extra-source-files:
   - README.md
@@ -14,13 +15,17 @@ extra-source-files:
 
 synopsis: A collaborative product vision, roadmap and resource planning tool.
 category: Tools
-description: Please see the README on Github at <https://github.com/saschagrunert/seer#readme>
+description: Please see the README on Github at
+  <https://github.com/saschagrunert/seer#readme>
 
 dependencies:
   - base >= 4.7 && < 5
 
 library:
   source-dirs: src
+  dependencies:
+    - bytestring
+    - process
 
 executables:
   seer-exe:
@@ -42,7 +47,10 @@ tests:
       - -rtsopts
       - -with-rtsopts=-N
     dependencies:
+      - bytestring
+      - hspec
       - seer
       - tasty
       - tasty-hspec
       - tasty-smallcheck
+      - test-fixture
