@@ -2,7 +2,7 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: cbfb7bd507229d3835fcf634dd90b57e2c474f25807be49a677a44a94d16b857
+-- hash: af920053c6139039f17bbfd744eb6333ab2817e70ce8dc86cd071c68e36d9e83
 
 name:           seer
 version:        0.1.0
@@ -37,7 +37,10 @@ library
     , process
   exposed-modules:
       Seer
+      Seer.Action
       Seer.Git
+      Seer.Team
+      Seer.User
   other-modules:
       Paths_seer
   default-language: Haskell2010
@@ -70,5 +73,8 @@ test-suite seer-test
     , tasty-smallcheck
     , test-fixture
   other-modules:
+      GitSpec
+      TeamSpec
+      UserSpec
       Paths_seer
   default-language: Haskell2010
