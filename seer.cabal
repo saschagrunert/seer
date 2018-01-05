@@ -2,7 +2,7 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: af920053c6139039f17bbfd744eb6333ab2817e70ce8dc86cd071c68e36d9e83
+-- hash: 5a65b02c574d668e4191162ad399fe3a5656eca34d477090e79893c0815c572a
 
 name:           seer
 version:        0.1.0
@@ -34,6 +34,7 @@ library
   build-depends:
       base >=4.7 && <5
     , bytestring
+    , containers
     , process
   exposed-modules:
       Seer
@@ -73,6 +74,7 @@ test-suite seer-test
     , tasty-smallcheck
     , test-fixture
   other-modules:
+      ActionSpec
       GitSpec
       TeamSpec
       UserSpec

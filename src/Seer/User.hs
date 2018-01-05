@@ -1,20 +1,28 @@
 -- | This module includes everything about a 'User'.
 
 module Seer.User (
-    newEmptyUser,
-    User(..),
+    User,
+    Users,
+    empty,
+    newUser,
 ) where
 
-import Seer.Action (Action)
+import qualified Data.Set as Set
 
--- | The data specified for an User
-data User = User {
-    name     :: String,     -- ^ The name of the User
-    actions  :: [Action]    -- ^ The 'Action's of the User
-} deriving (Eq, Show)
+-- | The data representing multiple Users
+newtype Users = Users (Set.Set User)
+    deriving (Eq, Show)
 
--- | Creates a new User from a given name without containing any 'Action'
-newEmptyUser
-    :: String     -- ^ The users name
-    -> User       -- ^ The resulting 'User'
-newEmptyUser a = User {name = a, actions = []}
+-- | The data representing a single User
+newtype User = User String
+    deriving (Eq, Show)
+
+-- | The empty 'Users' representation
+empty :: Users
+empty = Users Set.empty
+
+-- | Creates a new 'User' from a given name
+newUser
+    :: String   -- ^ The users name
+    -> User     -- ^ The resulting 'User'
+newUser = User

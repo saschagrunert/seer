@@ -3,7 +3,8 @@ module TeamSpec (
     teamSpec,
 ) where
 
-import Seer.Team (newEmptyTeam, Team(..))
+import Seer.Team (empty, name, newTeam, users)
+import qualified Seer.User as User
 import Test.Tasty.Hspec (Spec, it, parallel, shouldBe)
 import Test.Tasty.SmallCheck ((==>), testProperty)
 import Test.Tasty (testGroup, TestTree)
@@ -13,42 +14,42 @@ import Test.Tasty (testGroup, TestTree)
 teamSpec :: Spec
 teamSpec = parallel $ do
     it "should succeed to create a new empty Team"
-        $          newEmptyTeam "test"
-        `shouldBe` Team {name = "test", actions = [], users = []}
+        $          newTeam "test"
+        `shouldBe` newTeam "test"
 
-    it "should succeed to 'show' a Team list"
-        $          show [newEmptyTeam "test"]
-        `shouldBe` "[Team {name = \"test\", actions = [], users = []}]"
+    it "should succeed to 'show' a Team"
+        $          show [newTeam "test"]
+        `shouldBe` "[Team {name = \"test\", users = Users (fromList [])}]"
+
+    it "should succeed to 'show' Teams"
+        $          show [empty]
+        `shouldBe` "[Teams (fromList [])]"
 
 -- Property tests
 teamProps :: TestTree
 teamProps = testGroup
     "TeamSpec.hs"
     [
-    -- Team creation test
-      testProperty "team creation" $ \testName -> newEmptyTeam testName
-        == Team {name = testName, actions = [], users = []}
+    -- 'Team ==' test
+      testProperty "team equal"
+        $ \testName -> newTeam testName == newTeam testName
+
+    -- 'Team =/' test
+    , testProperty "team not equal"
+        $ \t1 t2 -> t1 /= t2 ==> newTeam t1 /= newTeam t2
 
     -- Team 'show' test
     , testProperty "team show" $ \testName ->
-        show (newEmptyTeam testName)
+        show (newTeam testName)
             == "Team {name = \""
             ++ testName
-            ++ "\", actions = [], users = []}"
+            ++ "\", users = Users (fromList [])}"
 
-    -- Team =/ test
-    , testProperty "team not equal"
-        $ \t1 t2 -> t1 /= t2 ==> newEmptyTeam t1 /= newEmptyTeam t2
-
-    -- Team 'name' test
+   -- Team 'name' test
     , testProperty "team name"
-        $ \testName -> name (newEmptyTeam testName) == testName
-
-    -- Team 'actions' test
-    , testProperty "team actions"
-        $ \testName -> null . actions $ newEmptyTeam testName
+        $ \testName -> name (newTeam testName) == testName
 
     -- Team 'users' test
     , testProperty "team users"
-        $ \testName -> null . users $ newEmptyTeam testName
+        $ \testName -> users (newTeam testName) == User.empty
     ]

@@ -1,23 +1,32 @@
 -- | This module includes everything about a 'Team'.
 
 module Seer.Team (
-    newEmptyTeam,
-    Team(..),
+    Team,
+    Teams,
+    empty,
+    name,
+    newTeam,
+    users,
 ) where
 
-import Seer.Action (Action)
-import Seer.User (User)
+import qualified Seer.User as User
+import qualified Data.Map as Map
 
--- | The data specified for a Team
-data Team = Team {
-    name     :: String,     -- ^ The name of the Team
-    actions  :: [Action],   -- ^ The 'Action's of the Team
-    users    :: [User]      -- ^ The 'User's of a Team
-} deriving (Eq, Show)
+-- | The data representing multiple Teams
+newtype Teams = Teams (Map.Map String Team)
+    deriving (Show)
 
--- | Creates a new Team from a given name without containing any 'User' or
--- 'Action'
-newEmptyTeam
-    :: String     -- ^ The teams name
-    -> Team       -- ^ The resulting 'Team'
-newEmptyTeam a = Team {name = a, actions = [], users = []}
+-- | The data representing a single Team
+data Team = Team { name     :: String       -- ^ The name of the Team
+                 , users    :: User.Users   -- ^ The 'Users' of a Team
+                 } deriving (Eq, Show)
+
+-- | The empty 'Teams' representation
+empty :: Teams
+empty = Teams Map.empty
+
+-- | Creates a new 'Team' from a given name with empty 'Users'
+newTeam
+    :: String   -- ^ The teams name
+    -> Team     -- ^ The resulting 'Team'
+newTeam a = Team {name = a, users = User.empty}
