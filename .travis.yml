@@ -1,97 +1,62 @@
 ---
-# Use new container infrastructure to enable caching
 sudo: false
 
-# Do not choose a language; we provide our own build tools.
 language: generic
 
-# Caching so the next build will be fast too.
 cache:
   directories:
     - $HOME/.ghc
     - $HOME/.cabal
     - $HOME/.stack
 
-# The different configurations we want to test. We have BUILD=cabal which uses
-# cabal-install, and BUILD=stack which uses Stack.
 matrix:
   include:
-    - env: BUILD=cabal GHCVER=7.10.3 CABALVER=1.22 HAPPYVER=1.19.5 ALEXVER=3.1.7
-      compiler: ": #GHC 7.10.3"
-      addons: {apt: {packages: [cabal-install-1.22, ghc-7.10.3, happy-1.19.5,
-                                alex-3.1.7], sources: [hvr-ghc]}}
-
-    - env: BUILD=cabal GHCVER=8.0.2 CABALVER=1.24 HAPPYVER=1.19.5 ALEXVER=3.1.7
-      compiler: ": #GHC 8.0.2"
-      addons: {apt: {packages: [cabal-install-1.24, ghc-8.0.2, happy-1.19.5,
-                                alex-3.1.7], sources: [hvr-ghc]}}
-
-    - env: BUILD=cabal GHCVER=8.2.2 CABALVER=2.0 HAPPYVER=1.19.5 ALEXVER=3.1.7
-      compiler: ": #GHC 8.2.2"
-      addons: {apt: {packages: [cabal-install-2.0, ghc-8.2.2, happy-1.19.5,
-                                alex-3.1.7], sources: [hvr-ghc]}}
-
-    # Build with the newest GHC and cabal-install. This is an accepted failure
-    - env: BUILD=cabal GHCVER=head  CABALVER=head HAPPYVER=1.19.5 ALEXVER=3.1.7
-      compiler: ": #GHC HEAD"
-      addons: {apt: {packages: [cabal-install-head, ghc-head, happy-1.19.5,
-                                alex-3.1.7], sources: [hvr-ghc]}}
-
-    # The Stack builds. We can pass in arbitrary Stack arguments via the ARGS
-    # variable, such as using --stack-yaml to point to a different file.
-    - env: BUILD=stack ARGS=""
-      compiler: ": #stack default"
+    - env: ARGS=""
+      compiler: ": default (linux)"
       addons: {apt: {packages: [libgmp-dev]}}
 
-    - env: BUILD=stack ARGS="--resolver lts-3"
-      compiler: ": #stack 7.10.2"
+    - env: ARGS="--resolver lts-3"
+      compiler: ": 7.10.2 (linux)"
       addons: {apt: {packages: [libgmp-dev]}}
 
-    - env: BUILD=stack ARGS="--resolver lts-6"
-      compiler: ": #stack 7.10.3"
+    - env: ARGS="--resolver lts-6"
+      compiler: ": 7.10.3 (linux)"
       addons: {apt: {packages: [libgmp-dev]}}
 
-    - env: BUILD=stack ARGS="--resolver lts-9"
-      compiler: ": #stack 8.0.2"
+    - env: ARGS="--resolver lts-9"
+      compiler: ": 8.0.2 (linux)"
       addons: {apt: {packages: [libgmp-dev]}}
 
-    # Nightly builds are allowed to fail
-    - env: BUILD=stack ARGS="--resolver nightly"
-      compiler: ": #stack nightly"
+    - env: ARGS="--resolver nightly"
+      compiler: ": nightly (linux)"
       addons: {apt: {packages: [libgmp-dev]}}
 
-    # Build on macOS in addition to Linux
-    - env: BUILD=stack ARGS=""
-      compiler: ": #stack default osx"
+    - env: ARGS=""
+      compiler: ": default (macOS)"
       os: osx
 
-    - env: BUILD=stack ARGS="--resolver lts-3"
-      compiler: ": #stack 7.10.2 osx"
+    - env: ARGS="--resolver lts-3"
+      compiler: ": 7.10.2 (macOS)"
       os: osx
 
-    - env: BUILD=stack ARGS="--resolver lts-6"
-      compiler: ": #stack 7.10.3 osx"
+    - env: ARGS="--resolver lts-6"
+      compiler: ": 7.10.3 (macOS)"
       os: osx
 
-    - env: BUILD=stack ARGS="--resolver lts-9"
-      compiler: ": #stack 8.0.2 osx"
+    - env: ARGS="--resolver lts-9"
+      compiler: ": 8.0.2 (macOS)"
       os: osx
 
-    - env: BUILD=stack ARGS="--resolver nightly"
-      compiler: ": #stack nightly osx"
+    - env: ARGS="--resolver nightly"
+      compiler: ": nightly (macOS)"
       os: osx
 
   allow_failures:
-    - env: BUILD=cabal GHCVER=head  CABALVER=head HAPPYVER=1.19.5 ALEXVER=3.1.7
-    - env: BUILD=stack ARGS="--resolver nightly"
+    - env: ARGS="--resolver nightly"
 
 before_install:
   # Using compiler above sets CC to an invalid value, so unset it
   - unset CC
-
-  # We want to always allow newer versions of packages when building on GHC HEAD
-  - CABALARGS=""
-  - if [ "x$GHCVER" = "xhead" ]; then CABALARGS=--allow-newer; fi
 
   # Download and unpack the stack executable
   - export PATH=/opt/ghc/$GHCVER/bin:/opt/cabal/$CABALVER/bin:$HOME/.local/bin:/opt/alex/$ALEXVER/bin:/opt/happy/$HAPPYVER/bin:$HOME/.cabal/bin:$PATH
@@ -124,75 +89,32 @@ install:
   - if [ -f configure.ac ]; then autoreconf -i; fi
   - |
     set -ex
-    case "$BUILD" in
-      stack)
-        # Add in extra-deps for older snapshots, as necessary
-        stack --no-terminal --install-ghc $ARGS test --bench --dry-run || ( \
-          stack --no-terminal $ARGS build cabal-install && \
-          stack --no-terminal $ARGS solver --update-config)
+    # Add in extra-deps for older snapshots, as necessary
+    stack --no-terminal --install-ghc $ARGS test --bench --dry-run || ( \
+      stack --no-terminal $ARGS build cabal-install && \
+      stack --no-terminal $ARGS solver --update-config)
 
-        # Build the dependencies
-        stack --no-terminal --install-ghc $ARGS test --bench --only-dependencies
+    # Build the dependencies
+    stack --no-terminal --install-ghc $ARGS test --bench --only-dependencies
 
-        # Install doctest
-        stack --no-terminal install doctest
-        ;;
-      cabal)
-        cabal --version
-        travis_retry cabal update
-
-        # Get the list of packages from the stack.yaml file. Note that
-        # this will also implicitly run hpack as necessary to generate
-        # the .cabal files needed by cabal-install.
-        PACKAGES=$(stack --install-ghc query locals | grep '^ *path' | sed 's@^ *path:@@')
-
-        cabal install --only-dependencies --enable-tests --enable-benchmarks \
-          --force-reinstalls --ghc-options=-O0 --reorder-goals \
-          --max-backjumps=-1 $CABALARGS $PACKAGES
-        ;;
-    esac
+    # Install doctest
+    stack --no-terminal install doctest
     set +ex
 
 script:
   - |
     set -ex
-    case "$BUILD" in
-      stack)
-        stack --no-terminal $ARGS test \
-          --bench --no-run-benchmarks --haddock --no-haddock-deps --coverage
-        if [[ "$BUILD" == "stack" && "$ARGS" == "" ]]; then
-          find src -name "*.hs" | xargs stack exec doctest -- -isrc
-        fi
-        ;;
-      cabal)
-        cabal install --enable-tests --enable-benchmarks --force-reinstalls \
-          --ghc-options=-O0 --reorder-goals --max-backjumps=-1 \
-          $CABALARGS $PACKAGES
-
-        ORIGDIR=$(pwd)
-        for dir in $PACKAGES
-        do
-          cd $dir
-          cabal check || [ "$CABALVER" == "1.16" ]
-          cabal sdist
-          PKGVER=$(cabal info . | awk '{print $2;exit}')
-          SRC_TGZ=$PKGVER.tar.gz
-          cd dist
-          tar zxfv "$SRC_TGZ"
-          cd "$PKGVER"
-          cabal configure --enable-tests
-          cabal build
-          cabal test
-          cd $ORIGDIR
-        done
-        ;;
-    esac
+    stack --no-terminal $ARGS test \
+      --bench --no-run-benchmarks --haddock --no-haddock-deps --coverage
+    if [[ "$ARGS" == "" ]]; then
+      find src -name "*.hs" | xargs stack exec doctest -- -isrc
+    fi
     set +ex
 
 after_script:
   - |
     set -ex
-    if [[ "$TRAVIS_OS_NAME" == "linux" && "$BUILD" == "stack" && "$ARGS" == "--resolver lts-6" ]]; then
+    if [[ "$TRAVIS_OS_NAME" == "linux" && "$ARGS" == "--resolver lts-6" ]]; then
       travis_retry curl -L https://github.com/rubik/stack-hpc-coveralls/releases/download/v0.0.4.0/shc-linux-x64-7.10.3.tar.bz2 | tar -xj
       ./shc seer seer-test
     fi

@@ -5,9 +5,9 @@ module ActionSpec (
 
 import Data.Maybe (isNothing)
 import Seer.Action (empty, name, newAction, assigned)
+import Test.Tasty (testGroup, TestTree)
 import Test.Tasty.Hspec (Spec, it, parallel, shouldBe)
 import Test.Tasty.SmallCheck ((==>), testProperty)
-import Test.Tasty (testGroup, TestTree)
 
 -- User.hs related tests
 -- Unit tests
@@ -24,6 +24,8 @@ actionSpec = parallel $ do
     it "should succeed to 'show' Actions"
         $          show [empty]
         `shouldBe` "[Actions []]"
+
+    it "should succeed to create empty Actions" $ empty `shouldBe` empty
 
 -- Property tests
 actionProps :: TestTree

@@ -3,10 +3,10 @@ module UserSpec (
     userSpec,
 ) where
 
-import Seer.User (empty, newUser)
+import Seer.User (empty, name, newUser)
+import Test.Tasty (testGroup, TestTree)
 import Test.Tasty.Hspec (Spec, it, parallel, shouldBe)
 import Test.Tasty.SmallCheck ((==>), testProperty)
-import Test.Tasty (testGroup, TestTree)
 
 -- User.hs related tests
 -- Unit tests
@@ -18,15 +18,13 @@ userSpec = parallel $ do
 
     it "should succeed to 'show' a User"
         $          show [newUser "test"]
-        `shouldBe` "[User \"test\"]"
+        `shouldBe` "[User {name = \"test\"}]"
 
     it "should succeed to 'show' Users"
         $          show [empty]
         `shouldBe` "[Users (fromList [])]"
 
-    it "should succeed to create empty Users"
-        $          empty
-        `shouldBe` empty
+    it "should succeed to create empty Users" $ empty `shouldBe` empty
 
 -- Property tests
 userProps :: TestTree
@@ -43,5 +41,9 @@ userProps = testGroup
 
     -- User 'show' test
     , testProperty "user show" $ \testName ->
-        show (newUser testName) == "User \"" ++ testName ++ "\""
+        show (newUser testName) == "User {name = \"" ++ testName ++ "\"}"
+
+    -- Team 'name' test
+    , testProperty "user name"
+        $ \testName -> name (newUser testName) == testName
     ]

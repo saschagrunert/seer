@@ -25,7 +25,7 @@ class Monad m => MonadGit m where
     -- A 'try' wrapper
     try' :: m a -> m (Either SomeException a)
 
--- | The implementation of the abstraction for the IO Monad
+-- | The implementation of the isolation abstraction for the IO Monad
 --
 -- @since 0.1.0
 instance MonadGit IO where
@@ -53,7 +53,7 @@ runGitCommand
 runGitCommand a = do
     r <- try' $ readProcessWithExitCode' "git" (words a) ""
     case r of
-        Left  err -> return . Right $ show err
+        Left  err -> return . Left $ show err
         Right res -> evaluateProcessResult res
 
 -- | Turns an 'ExitCode' and two 'String' for standard output/error and

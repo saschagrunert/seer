@@ -24,13 +24,13 @@ gitSpec :: Spec
 gitSpec = parallel $ do
     it "should succeed with a real 'git status' command"
         $              isRight
-        `fmap`         runGitCommand "status"
+        <$>            runGitCommand "status"
         `shouldReturn` True
 
 
     it "should fail with a real 'git test' command"
         $              isLeft
-        `fmap`         runGitCommand "test"
+        <$>            runGitCommand "test"
         `shouldReturn` True
 
 
@@ -63,4 +63,4 @@ gitSpec = parallel $ do
                     return $ Left (toException (AssertionFailed "failure"))
                 }
         let result = unTestFixture (runGitCommand "") fixture
-        result `shouldBe` Right "failure"
+        result `shouldBe` Left "failure"

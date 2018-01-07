@@ -27,6 +27,7 @@ library:
     - containers
     - bytestring
     - process
+    - yaml
 
 executables:
   seer-exe:
@@ -49,9 +50,11 @@ tests:
       - -with-rtsopts=-N
     dependencies:
       - bytestring
+      - directory
       - hspec
       - seer
       - tasty
       - tasty-hspec
       - tasty-smallcheck
       - test-fixture
+      - yaml

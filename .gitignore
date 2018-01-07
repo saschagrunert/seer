@@ -15,6 +15,7 @@
 .hpc
 .hsenv
 .stack-work/
+.testfile
 cabal-dev
 cabal.project.local
 cabal.sandbox.config

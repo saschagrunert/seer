@@ -3,11 +3,11 @@ module TeamSpec (
     teamSpec,
 ) where
 
+import Data.Maybe (isNothing)
 import Seer.Team (empty, name, newTeam, users)
-import qualified Seer.User as User
+import Test.Tasty (testGroup, TestTree)
 import Test.Tasty.Hspec (Spec, it, parallel, shouldBe)
 import Test.Tasty.SmallCheck ((==>), testProperty)
-import Test.Tasty (testGroup, TestTree)
 
 -- User.hs related tests
 -- Unit tests
@@ -19,11 +19,13 @@ teamSpec = parallel $ do
 
     it "should succeed to 'show' a Team"
         $          show [newTeam "test"]
-        `shouldBe` "[Team {name = \"test\", users = Users (fromList [])}]"
+        `shouldBe` "[Team {name = \"test\", users = Nothing}]"
 
     it "should succeed to 'show' Teams"
         $          show [empty]
         `shouldBe` "[Teams (fromList [])]"
+
+    it "should succeed to create empty Teams" $ empty `shouldBe` empty
 
 -- Property tests
 teamProps :: TestTree
@@ -43,13 +45,13 @@ teamProps = testGroup
         show (newTeam testName)
             == "Team {name = \""
             ++ testName
-            ++ "\", users = Users (fromList [])}"
+            ++ "\", users = Nothing}"
 
-   -- Team 'name' test
+    -- Team 'name' test
     , testProperty "team name"
         $ \testName -> name (newTeam testName) == testName
 
     -- Team 'users' test
     , testProperty "team users"
-        $ \testName -> users (newTeam testName) == User.empty
+        $ \testName -> isNothing . users $ newTeam testName
     ]
