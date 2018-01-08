@@ -3,7 +3,7 @@ module UserSpec (
     userSpec,
 ) where
 
-import Seer.User (empty, name, newUser)
+import Seer.User ((|+), (|-), empty, name, newUser, toUsers)
 import Test.Tasty (testGroup, TestTree)
 import Test.Tasty.Hspec (Spec, it, parallel, shouldBe)
 import Test.Tasty.SmallCheck ((==>), testProperty)
@@ -43,7 +43,18 @@ userProps = testGroup
     , testProperty "user show" $ \testName ->
         show (newUser testName) == "User {name = \"" ++ testName ++ "\"}"
 
-    -- Team 'name' test
+    -- User 'name' test
     , testProperty "user name"
         $ \testName -> name (newUser testName) == testName
+
+    -- 'toUsers' test
+    , testProperty "toUsers" $ \testName -> toUsers (newUser testName) /= empty
+
+    -- 'add' test
+    , testProperty "'|+' (add)" $ \testName ->
+        empty |+ newUser testName == toUsers (newUser testName)
+
+    -- 'remove' test
+    , testProperty "'|-' (remove)" $ \testName ->
+        toUsers (newUser testName) |- newUser testName == empty
     ]
