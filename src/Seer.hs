@@ -1,4 +1,6 @@
 -- | This module everything related to the main library interface
+--
+-- @since 0.1.0
 
 module Seer (
     Id,

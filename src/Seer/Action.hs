@@ -1,4 +1,6 @@
 -- | This module includes everything about a 'Action'.
+--
+-- @since 0.1.0
 
 {-# LANGUAGE DeriveGeneric #-}
 
@@ -14,6 +16,7 @@ module Seer.Action (
 import Data.Yaml (FromJSON, ToJSON)
 import GHC.Generics (Generic)
 import Seer (Id)
+import Seer.Resource (Resources)
 
 -- | The data representing multiple Actions
 --
@@ -24,20 +27,28 @@ newtype Actions = Actions [Action]
 -- | The data specified for a Action
 --
 -- @since 0.1.0
-data Action = Action { name :: String         -- ^ The identifier of the Action
-                     , assigned :: Maybe [Id] -- ^ To whom belongs the Action
+data Action = Action { name :: String              -- ^ The identifier of the Action
+                     , assigned :: Maybe Resources -- ^ To whom belongs the Action
                      } deriving (Eq, Generic, Show)
 
 -- | Parses the 'Action' from YAML/JSON
+--
+-- @since 0.1.0
 instance FromJSON Action
 
 -- | Parses the 'Actions' from YAML/JSON
+--
+-- @since 0.1.0
 instance FromJSON Actions
 
 -- | Generates the YAML/JSON from an 'Action'
+--
+-- @since 0.1.0
 instance ToJSON Action
 
 -- | Generates the YAML/JSON from 'Actions'
+--
+-- @since 0.1.0
 instance ToJSON Actions
 
 -- | The empty 'Actions' representation

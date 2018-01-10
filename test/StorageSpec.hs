@@ -14,12 +14,11 @@ import Data.ByteString.Char8 (pack)
 import Data.Either (Either(..), isLeft)
 import Data.Maybe (fromJust)
 import Data.Yaml (decodeEither, ParseException(NonScalarKey))
-import Seer.Storage (actions, empty, load, save, teams, users, MonadStorage, Storage)
+import Seer.Storage (actions, empty, load, save, resources, MonadStorage, Storage)
 import System.Directory (removeFile)
 import Test.Tasty.Hspec (Spec, it, parallel, shouldBe, shouldContain, shouldNotBe, shouldReturn)
 import qualified Seer.Action as Action
-import qualified Seer.Team as Team
-import qualified Seer.User as User
+import qualified Seer.Resource as Resource
 
 mkFixture "MonadStorageFixture" [ts| MonadStorage |]
 
@@ -28,10 +27,10 @@ mkFixture "MonadStorageFixture" [ts| MonadStorage |]
 storageSpec :: Spec
 storageSpec = parallel $ do
     it "should succeed to 'show' Storage"
-        $ show [empty]
-        `shouldBe` "[Storage {users = Nothing, teams = Nothing, actions = Nothing}]"
+        $          show [empty]
+        `shouldBe` "[Storage {resources = Nothing, actions = Nothing}]"
 
-    it "should succeed to create empty Teams" $ empty `shouldBe` empty
+    it "should succeed to create empty Actions" $ empty `shouldBe` empty
 
     it "should succeed with a real 'load' command and a real testfile" $ do
         result <- load "test/files/example.yaml"
@@ -39,15 +38,14 @@ storageSpec = parallel $ do
             Right s -> do
                 s `shouldNotBe` empty
                 fromJust (actions s) `shouldNotBe` Action.empty
-                fromJust (teams s) `shouldNotBe` Team.empty
-                fromJust (users s) `shouldNotBe` User.empty
+                fromJust (resources s) `shouldNotBe` Resource.empty
             Left e -> fail $ "Failed to parse file: " ++ e
 
     it "should succeed with a real 'save' command" $ do
         let fn = "test/files/output.yaml"
         save empty fn
         c <- readFile fn
-        c `shouldBe` "users: null\nactions: null\nteams: null\n"
+        c `shouldBe` "actions: null\nresources: null\n"
         removeFile fn
 
     it "should fail with a real 'load' command and a not existing file" $ do

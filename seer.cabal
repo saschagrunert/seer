@@ -2,7 +2,7 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 035e77006fa12a97536b6a2bb08c905ddafceaed5661ee840b37ae094a6e27d7
+-- hash: 3083cb96c770aef493cc59609fb03d32b4896c58465aff15871810c34b3559c7
 
 name:           seer
 version:        0.1.0
@@ -32,10 +32,10 @@ library
   exposed-modules:
       Seer
       Seer.Action
+      Seer.Entity
       Seer.Git
+      Seer.Resource
       Seer.Storage
-      Seer.Team
-      Seer.User
   other-modules:
       Paths_seer
   hs-source-dirs:
@@ -66,9 +66,8 @@ test-suite seer-test
   other-modules:
       ActionSpec
       GitSpec
+      ResourceSpec
       StorageSpec
-      TeamSpec
-      UserSpec
       Paths_seer
   hs-source-dirs:
       test

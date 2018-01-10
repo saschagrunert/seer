@@ -1,4 +1,6 @@
 -- | This module includes everything related to Storage handling.
+--
+-- @since 0.1.0
 
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
@@ -9,16 +11,14 @@ module Seer.Storage (
     actions,
     empty,
     load,
+    resources,
     save,
-    teams,
-    users,
 ) where
 
 import Data.Bifunctor (first)
 import Data.Yaml
 import Seer.Action (Actions)
-import Seer.Team (Teams)
-import Seer.User (Users)
+import Seer.Resource (Resources)
 
 -- | A abstraction Monad to isolate real IO Actions
 --
@@ -37,26 +37,27 @@ instance MonadStorage IO where
     decodeFileEither' = decodeFileEither
     encodeFile' = encodeFile
 
--- | The storage for representing 'Users', 'Teams' and 'Actions'.
+-- | The storage for representing 'Resources' and 'Actions'.
 --
 -- @since 0.1.0
-data Storage = Storage { users :: Maybe Users     -- ^ The users to be stored
-                       , teams :: Maybe Teams     -- ^ The teams to be stored
+data Storage = Storage { resources :: Maybe Resources -- ^ The resources to be stored
                        , actions :: Maybe Actions -- ^ The actions to be stored
                        } deriving (Eq, Show)
 
 -- | Parses the 'Storage' from YAML/JSON
+--
+-- @since 0.1.0
 instance FromJSON Storage where
     parseJSON (Object m) = Storage <$>
-        m .: "users" <*>
-        m .: "teams" <*>
+        m .: "resources" <*>
         m .: "actions"
     parseJSON x = fail $ "not an object: " ++ show x
 
 -- | Generates the YAML/JSON from a 'Storage'
+--
+-- @since 0.1.0
 instance ToJSON Storage where
-    toJSON Storage{..} = object [ "users" .= users
-                                , "teams"  .= teams
+    toJSON Storage{..} = object [ "resources" .= resources
                                 , "actions" .= actions ]
 
 -- | The empty 'Storage' representation
@@ -64,11 +65,11 @@ instance ToJSON Storage where
 -- Examples:
 --
 -- >>> empty
--- Storage {users = Nothing, teams = Nothing, actions = Nothing}
+-- Storage {resources = Nothing, actions = Nothing}
 --
 -- @since 0.1.0
 empty :: Storage
-empty = Storage {users = Nothing, teams = Nothing, actions = Nothing}
+empty = Storage {resources = Nothing, actions = Nothing}
 
 -- | Load from the given 'FilePath' and return either a error 'String' or a
 -- valid 'Storage' instance

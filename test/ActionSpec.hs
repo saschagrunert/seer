@@ -9,7 +9,7 @@ import Test.Tasty (testGroup, TestTree)
 import Test.Tasty.Hspec (Spec, it, parallel, shouldBe)
 import Test.Tasty.SmallCheck ((==>), testProperty)
 
--- User.hs related tests
+-- Action.hs related tests
 -- Unit tests
 actionSpec :: Spec
 actionSpec = parallel $ do

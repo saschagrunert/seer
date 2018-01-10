@@ -1,4 +1,6 @@
 -- | This module includes everything related to git.
+--
+-- @since 0.1.0
 
 {-# LANGUAGE OverloadedStrings #-}
 

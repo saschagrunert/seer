@@ -1,16 +1,10 @@
 ---
-users:
+resources:
   - name: John Doe
   - name: Jane Donna
-
-teams:
-  - name: Alpha
-    users:
-      - John Doe
-  - name: Beta
 
 actions:
   - name: Go do something
     assigned:
-      - Alpha
+      - name: Alpha
   - name: None assigned action

@@ -11,9 +11,9 @@ It should be possible, to …
 
 1. …save the applications state persistently.
 2. …work collaboratively with other Users of the application.
-3. …manage a 'Team' by adding or removing 'Users'.
-4. …add 'things' to certain or multiple Users of the Team.
-5. …display the resource usage of certain teams and Users.
+3. …manage a 'Resource'.
+4. …add 'Actions' to certain or multiple 'Resources'.
+5. …display the resource usage of certain 'Resources'.
 6. …display the schedule for a chosen time interval.
 7. …customize the actual work time slots.
 
