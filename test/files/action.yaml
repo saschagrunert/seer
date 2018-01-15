@@ -1,0 +1,10 @@
+---
+apiVersion: v1
+kind: Action
+metadata:
+  creationTimestamp: 2017-12-16T10:05:19Z
+  uid: 9f0709c3
+spec:
+  name: Do Something
+  description: Some fancy action
+  duration: 10h

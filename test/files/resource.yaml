@@ -1,0 +1,21 @@
+---
+apiVersion: v1
+kind: Resource
+metadata:
+  creationTimestamp: 2017-12-16T10:05:19Z
+  uid: 9f0709c2
+spec:
+  name: John Doe
+  description: The User John
+  availabilities:
+    monday:
+      - from: 10:00
+        to: 13:00
+      - from: 15:20
+        to: 20:15
+    tuesday:
+      - from: 10:00
+        to: 13:00
+    wednesday:
+      - from: 10:00
+        to: 13:00

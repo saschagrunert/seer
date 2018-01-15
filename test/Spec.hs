@@ -1,10 +1,8 @@
 import Test.Tasty (TestTree, defaultMain, testGroup)
 import Test.Tasty.Hspec (testSpec)
 
-import ActionSpec (actionProps, actionSpec)
 import GitSpec (gitSpec)
-import StorageSpec (storageSpec)
-import ResourceSpec (resourceProps, resourceSpec)
+import TimeSpec (timeSpec, timeProps)
 
 -- The main test routine
 main :: IO ()
@@ -15,14 +13,10 @@ main = do
 -- Unit tests based on hspec
 unitTests :: IO TestTree
 unitTests = do
-    actionUnitTests   <- testSpec "ActionSpec.hs" actionSpec
-    gitUnitTests      <- testSpec "GitSpec.hs" gitSpec
-    storageUnitTests  <- testSpec "StorageSpec.hs" storageSpec
-    resourceUnitTests <- testSpec "ResourceSpec.hs" resourceSpec
-    return $ testGroup
-        "Unit Tests"
-        [actionUnitTests, gitUnitTests, storageUnitTests, resourceUnitTests]
+    gitUnitTests          <- testSpec "GitSpec.hs" gitSpec
+    availabilityUnitTests <- testSpec "TimeSpec.hs" timeSpec
+    return $ testGroup "Unit Tests" [availabilityUnitTests, gitUnitTests]
 
 -- Property tests based on quickcheck and smallcheck
 properties :: TestTree
-properties = testGroup "Properties" [actionProps, resourceProps]
+properties = testGroup "Properties" [timeProps]

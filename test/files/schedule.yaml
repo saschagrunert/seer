@@ -1,0 +1,12 @@
+---
+apiVersion: v1
+kind: Action
+metadata:
+  creationTimestamp: 2017-12-16T10:05:19Z
+  uid: 9f0709c3
+spec:
+  date: 2017-12-16
+  from: 10:05
+  to: 12:10
+  resourceID: 9f0709c2
+  actionID: 9f0709c2
