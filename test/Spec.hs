@@ -2,7 +2,7 @@ import Test.Tasty (TestTree, defaultMain, testGroup)
 import Test.Tasty.Hspec (testSpec)
 
 import GitSpec (gitSpec)
-import TimeSpec (timeSpec, timeProps)
+import AvailabilitySpec (availabilitySpec, availabilityProps)
 
 -- The main test routine
 main :: IO ()
@@ -14,9 +14,9 @@ main = do
 unitTests :: IO TestTree
 unitTests = do
     gitUnitTests          <- testSpec "GitSpec.hs" gitSpec
-    availabilityUnitTests <- testSpec "TimeSpec.hs" timeSpec
+    availabilityUnitTests <- testSpec "AvailabilitySpec.hs" availabilitySpec
     return $ testGroup "Unit Tests" [availabilityUnitTests, gitUnitTests]
 
 -- Property tests based on quickcheck and smallcheck
 properties :: TestTree
-properties = testGroup "Properties" [timeProps]
+properties = testGroup "Properties" [availabilityProps]

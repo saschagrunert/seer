@@ -8,7 +8,7 @@ module Seer.Entity.Resource (
     Resource(..),
 ) where
 
-import Seer.Time (Availabilities)
+import Seer.Availability (Availabilities)
 import Data.Yaml (FromJSON, ToJSON)
 import GHC.Generics (Generic)
 

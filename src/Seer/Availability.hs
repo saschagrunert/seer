@@ -4,28 +4,24 @@
 
 {-# LANGUAGE DeriveGeneric #-}
 
-module Seer.Time (
+module Seer.Availability (
     Availabilities,
     Availability,
-    TimeSpan,
     WeekDay(..),
-    fullAvailable,
-    newTime,
-    newTimeSpan,
+    available,
+    availableFromTo,
     notAvailable,
-    notAvailableAtAll,
+    notAvailableFromTo,
     reserve,
+    weeklyNotAvailable,
 ) where
 
-import Data.Char (isDigit)
-import Data.Maybe (fromMaybe)
 import Data.Time.LocalTime (TimeOfDay(..))
 import Data.Yaml (FromJSON, ToJSON)
 import Data.Aeson.Types (FromJSONKey, ToJSONKey)
 import GHC.Generics (Generic)
-import Text.Printf (printf)
 import qualified Data.Map.Strict as M (Map, empty)
-import qualified Data.Set as S ((\\), Set, empty, foldr, fromList, isSubsetOf, singleton, toList)
+import qualified Data.Set as S ((\\), Set, empty, foldr, fromList, isSubsetOf, singleton, toList, union)
 
 -- | The available times over a week
 --
@@ -46,8 +42,8 @@ instance ToJSON Availabilities
 -- | Not available over the whole week
 --
 -- @since 0.1.0
-notAvailableAtAll :: Availabilities -- ^ The resulting 'Availabilities'
-notAvailableAtAll = Availabilities M.empty
+weeklyNotAvailable :: Availabilities -- ^ The resulting 'Availabilities'
+weeklyNotAvailable = Availabilities M.empty
 
 -- | Possible weekdays
 --
@@ -83,7 +79,7 @@ instance ToJSONKey WeekDay
 
 -- | The available times over one day
 --
--- @since 0.w.0
+-- @since 0.1.0
 newtype Availability = Availability (S.Set TimeSpan)
     deriving (Eq, Generic, Ord, Show)
 
@@ -100,17 +96,7 @@ instance FromJSON Availability
 -- | Represents the expanded form of Availability
 --
 -- @since 0.1.0
-type ExpandedAvailability = S.Set Minutes
-
--- | Represents minutes
---
--- @since 0.1.0
-type Minutes = Int
-
--- | Represents hours
---
--- @since 0.1.0
-type Hours = Int
+type ExpandedAvailability = S.Set Int
 
 -- | Expands an 'Availability' to an 'ExpandedAvailability'
 --
@@ -118,8 +104,8 @@ type Hours = Int
 expand
     :: Availability         -- ^ The Availability to expand
     -> ExpandedAvailability -- ^ The resulting ExpandedAvailability
-expand (Availability l) = S.fromList $ S.foldr k [] l
-    where k (TimeSpan f t) = (++) [toMinutes f .. toMinutes t]
+expand (Availability l) = S.foldr k S.empty l
+    where k t = S.union $ toExpandedAvailability t
 
 -- | Reduces an 'ExpandedAvailability' to an 'Availability'
 --
@@ -132,6 +118,7 @@ reduce xs = Availability . S.fromList $ zipWith
     (first acc)
     (second acc)
   where
+    fromMinutes m = TimeOfDay (m `quot` 60) (m `mod` 60) 0
     acc = shrink (S.toList xs) 0 []
     second (_:y:ys) = y : second ys
     second _        = []
@@ -145,38 +132,64 @@ reduce xs = Availability . S.fromList $ zipWith
         k = o ++ [l, x]
     shrink _ l o = o ++ [l]
 
--- | Gives the fullAvailable 'Availability'
+-- | Gives the full daily 'Availability'
 --
 -- @since 0.1.0
-fullAvailable :: Availability -- ^ The resulting fullAvailable 'Availability'
-fullAvailable =
+available :: Availability -- ^ The resulting 'Availability'
+available =
     Availability . S.singleton $ TimeSpan (TimeOfDay 0 0 0) (TimeOfDay 23 59 0)
 
--- | not available for a particular day
+-- | Gives not available for a particular day
 --
 -- @since 0.1.0
 notAvailable :: Availability -- ^ The resulting 'Availability'
 notAvailable = Availability S.empty
 
+-- | Gives a full 'Availability' and reserves from a certain start and end time
+-- 'String's. Evaluates to 'Nothing' if the Strings are not valid formatted
+-- (HH:MM) or out of range.
+--
+-- @since 0.1.0
+notAvailableFromTo
+    :: String               -- ^ The start time String
+    -> String               -- ^ The end time String
+    -> Maybe Availability   -- ^ The resulting Availability
+notAvailableFromTo f t = reserve f t available
+
+-- | Gives 'Availability' for certain start and end time 'String's. Evaluates
+-- to 'Nothing' if the Strings are not valid formatted (HH:MM) or out of range.
+--
+-- @since 0.1.0
+availableFromTo
+    :: String               -- ^ The start time String
+    -> String               -- ^ The end time String
+    -> Maybe Availability   -- ^ The resulting Availability
+availableFromTo f t = Availability . S.singleton <$> newTimeSpan f t
+
 -- | Tries to reserve a time interval from an 'Availability' and gives the
--- resulting 'Availability' when succeeded
+-- resulting 'Availability' when succeeded. Evaluates to 'Nothing' if the
+-- Strings are not valid formatted (HH:MM) or out of range. Also if the time is
+-- not available any more.
 --
 -- @since 0.1.0
 reserve
-    :: Availability         -- ^ The input Availability
-    -> TimeSpan             -- ^ The time interval
+    :: String               -- ^ The start time String
+    -> String               -- ^ The end time String
+    -> Availability         -- ^ The input Availability
     -> Maybe Availability   -- ^ The result
-reserve a t = if S.isSubsetOf i k then Just . reduce $ k S.\\ i else Nothing
+reserve f t a = newTimeSpan f t >>= intersect
   where
-    i = toExpandedAvailability t
     k = expand a
+    intersect x = if S.isSubsetOf i k
+        then Just . reduce $ k S.\\ i
+        else Nothing
+        where i = toExpandedAvailability x
 
 -- | Represents a time interval
 --
 -- @since 0.1.0
-data TimeSpan = TimeSpan { from :: TimeOfDay -- ^ The starting time
-                         , to :: TimeOfDay   -- ^ The ending time
-                         } deriving (Eq, Generic, Ord, Show)
+data TimeSpan = TimeSpan TimeOfDay TimeOfDay
+    deriving (Eq, Generic, Ord, Show)
 
 -- | Generates the YAML/JSON from an 'TimeSpan'
 --
@@ -188,8 +201,8 @@ instance FromJSON TimeSpan
 -- @since 0.1.0
 instance ToJSON TimeSpan
 
--- | Creates a new 'TimeSpan' from two Strings. Evaluates to 'Nothing' if one
--- of the Strings is not a readable 'Time'
+-- | Creates a new 'TimeSpan' from two Strings in the format "HH:MM". Evaluates
+-- to 'Nothing' if one of the Strings is not a readable 'Time'
 --
 -- @since 0.1.0
 newTimeSpan
@@ -197,11 +210,16 @@ newTimeSpan
     -> String           -- ^ The end time as String
     -> Maybe TimeSpan   -- ^ The resulting TimeSpan
 newTimeSpan a b
-    | a <= b = case (reads a, reads b) of
-        ([]      , _       ) -> Nothing
-        (_       , []      ) -> Nothing
-        ((f, _):_, (t, _):_) -> Just TimeSpan {from = f, to = t}
-    | otherwise = Nothing
+    | a <= b
+    = case
+            ( reads $ a ++ ":00" :: [(TimeOfDay, String)]
+            , reads $ b ++ ":00" :: [(TimeOfDay, String)]
+            )
+        of
+            ((f, _):_, (t, _):_) -> Just $ TimeSpan f t
+            _                    -> Nothing
+    | otherwise
+    = Nothing
 
 -- | Converts a 'TimeSpan' to a 'ExpandedAvailability'.
 --
@@ -210,31 +228,4 @@ toExpandedAvailability
     :: TimeSpan             -- ^ The time interval
     -> ExpandedAvailability -- ^ The resulting ExpandedAvailability
 toExpandedAvailability (TimeSpan f t) = S.fromList [toMinutes f .. toMinutes t]
-
--- | Creates a new Time from Hours and Minutes. Evaluates to 'Nothing' if the
--- Hours and Minutes Range are not within 0-23 (hours) and 0-59 (minutes).
---
--- @since 0.1.0
-newTime
-    :: Hours           -- ^ The Hours
-    -> Minutes         -- ^ The Minutes
-    -> Maybe TimeOfDay -- ^ The resulting Time
-newTime h m | between 0 23 h && between 0 59 m = Just $ TimeOfDay h m 0
-            | otherwise                        = Nothing
-    where between low high val = low <= val && val <= high
-
--- | Converts a 'TimeOfDay' to the corresponding minutes per day
---
--- @since 0.1.0
-toMinutes
-    :: TimeOfDay -- ^ The actual 'TimeOfDay'
-    -> Minutes   -- ^ The resulting Minutes
-toMinutes (TimeOfDay h m _) = 60 * h + m
-
--- | Converts minutes to a 'TimeOfDay'
---
--- @since 0.1.0
-fromMinutes
-    :: Minutes   -- ^ The Minutes
-    -> TimeOfDay -- ^ The resulting 'TimeOfDay'
-fromMinutes m = TimeOfDay (m `quot` 60) (m `mod` 60) 0
+    where toMinutes (TimeOfDay h m _) = 60 * h + m
