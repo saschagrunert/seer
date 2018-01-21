@@ -2,7 +2,7 @@ import Test.Tasty (TestTree, defaultMain, testGroup)
 import Test.Tasty.Hspec (testSpec)
 
 import GitSpec (gitSpec)
-import AvailabilitySpec (availabilitySpec, availabilityProps)
+import AvailabilitySpec (availabilitySpec)
 
 -- The main test routine
 main :: IO ()
@@ -19,4 +19,4 @@ unitTests = do
 
 -- Property tests based on quickcheck and smallcheck
 properties :: TestTree
-properties = testGroup "Properties" [availabilityProps]
+properties = testGroup "Properties" []

@@ -2,7 +2,7 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: b172b190603ac234924851c9470247fe3627ec77961311ee47abfa42f394272c
+-- hash: 42438f4008a5fad096375db48ddf66329c0d3ec93516656f42745c2f3c95de39
 
 name:           seer
 version:        0.1.0
@@ -34,9 +34,9 @@ library
   build-depends:
       aeson
     , base >=4.7 && <5
-    , bytestring
     , containers
     , process
+    , split
     , time
     , uuid
     , yaml

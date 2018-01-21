@@ -24,9 +24,9 @@ library:
   source-dirs: src
   dependencies:
     - aeson
-    - bytestring
     - containers
     - process
+    - split
     - time
     - uuid
     - yaml
