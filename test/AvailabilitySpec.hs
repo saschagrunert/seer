@@ -1,8 +1,10 @@
 module AvailabilitySpec (
+    availabilityProps,
     availabilitySpec,
 ) where
 
 import Data.ByteString.Char8 (pack)
+import Data.Maybe (isJust)
 import Data.Yaml (decode, encode)
 import Seer.Availability (WeekDay(..)
                          ,dayAvailable
@@ -15,7 +17,87 @@ import Seer.Availability (WeekDay(..)
                          ,weekNotAvailable
                          ,weekNotAvailableFromTo
                          ,weekReserveTime)
+import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hspec (Spec, it, parallel, shouldBe)
+import Test.Tasty.QuickCheck ((==>), Arbitrary(..), elements, testProperty)
+
+-- Property generators
+newtype TimeSpanString = TimeSpanString { unwrapTimeString :: String }
+    deriving (Eq, Ord, Show)
+
+instance Arbitrary TimeSpanString where
+    arbitrary = do
+        h1 <- elements ['0'..'2']
+        h2 <- if h1 == '2' then elements ['0'..'4'] else elements ['0'..'9']
+        m1 <- elements ['0'..'5']
+        m2 <- elements ['0'..'9']
+        h3 <- elements ['0'..'2']
+        h4 <- if h3 == '2' then elements ['0'..'4'] else elements ['0'..'9']
+        m3 <- elements ['0'..'5']
+        m4 <- elements ['0'..'9']
+        let t1 = [h1,h2,':',m1,m2]
+        let t2 = [h3,h4,':',m3,m4]
+        let tr = if t1 <= t2 then t1 ++ "-" ++ t2 else t2 ++ "-" ++ t1
+        return $ TimeSpanString tr
+
+newtype WeekDayRnd = WeekDayRnd { unwrapWeekDayRnd :: WeekDay }
+    deriving (Eq, Ord, Show)
+
+instance Arbitrary WeekDayRnd where
+    arbitrary = WeekDayRnd <$> elements [Monday .. Sunday]
+
+-- Property tests
+availabilityProps :: TestTree
+availabilityProps = testGroup
+    "Availability.hs"
+    [
+      -- 'dayAvailableFromTo /=' test
+      testProperty "dayAvailableFromTo /=" $ \t1 t2 ->
+        t1
+            /=  t2
+            ==> dayAvailableFromTo [unwrapTimeString t1]
+            /=  dayAvailableFromTo [unwrapTimeString t2]
+
+      -- 'dayAvailableFromTo ==' test
+    , testProperty "dayAvailableFromTo ==" $ \t ->
+        dayAvailableFromTo [unwrapTimeString t]
+            == dayAvailableFromTo [unwrapTimeString t]
+
+      -- 'double daily availability' test
+    , testProperty "dayAvailableFromTo two timespans" $ \t1 t2 ->
+        isJust $ dayAvailableFromTo [unwrapTimeString t1, unwrapTimeString t2]
+
+      -- 'reserve daily availability' test
+    , testProperty "reserve all daily availability" $ \t -> do
+        let u = unwrapTimeString t
+        (dayAvailableFromTo [u] >>= dayReserveTime u) == Just dayNotAvailable
+
+      -- 'weekAvailableFromTo /=' test
+    , testProperty "weekAvailableFromTo /=" $ \t1 t2 w1 w2 ->
+        w1
+            /=  w2
+            ==> weekAvailableFromTo [(unwrapWeekDayRnd w1, unwrapTimeString t1)]
+            /=  weekAvailableFromTo [(unwrapWeekDayRnd w2, unwrapTimeString t2)]
+
+      -- 'weekAvailableFromTo ==' test
+    , testProperty "weekAvailableFromTo ==" $ \t w ->
+        weekAvailableFromTo [(unwrapWeekDayRnd w, unwrapTimeString t)]
+            == weekAvailableFromTo [(unwrapWeekDayRnd w, unwrapTimeString t)]
+
+      -- 'double weekly availability' test
+    , testProperty "weekAvailableFromTo two timespans"
+        $ \t1 t2 w1 w2 -> isJust $ weekAvailableFromTo
+              [ (unwrapWeekDayRnd w1, unwrapTimeString t1)
+              , (unwrapWeekDayRnd w2, unwrapTimeString t2)
+              ]
+
+      -- 'reserve weeekyl availability' test
+    , testProperty "reserve all weekly availability" $ \t w -> do
+        let u = unwrapTimeString t
+        let v = unwrapWeekDayRnd w
+        (weekAvailableFromTo [(v, u)] >>= weekReserveTime (v, u))
+            == Just weekNotAvailable
+    ]
 
 -- Availability.hs related tests
 -- Unit tests

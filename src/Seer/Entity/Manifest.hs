@@ -9,10 +9,12 @@ module Seer.Entity.Manifest (
     Manifest(..),
     Metadata(..),
     ResourceKind(..),
+    newMetadata,
 ) where
 
-import Data.Time.Clock (UTCTime)
+import Data.Time.Clock (UTCTime, getCurrentTime)
 import Data.UUID (UUID)
+import Data.UUID.V4 (nextRandom)
 import Data.Yaml (FromJSON, ToJSON)
 import GHC.Generics (Generic)
 
@@ -54,8 +56,9 @@ instance ToJSON ApiVersion
 -- | The available API Kinds
 --
 -- @since 0.1.0
-data ResourceKind = Action   -- ^ References an 'Action'
+data ResourceKind = Action   -- ^ References a 'Action'
                   | Resource -- ^ References a 'Resource'
+                  | Schedule -- ^ References a 'Schedule'
     deriving (Eq, Generic, Show)
 
 -- | Parses the 'ResourceKind' from YAML/JSON
@@ -84,3 +87,12 @@ instance FromJSON Metadata
 --
 -- @since 0.1.0
 instance ToJSON Metadata
+
+-- | Generates a new 'Metadata' from the current UTC time and a random UUID
+--
+-- @since 0.1.0
+newMetadata :: IO Metadata
+newMetadata = do
+    time <- getCurrentTime
+    uuid <- nextRandom
+    return Metadata {creationTimestamp = time, uid = uuid}

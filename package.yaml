@@ -25,6 +25,8 @@ library:
   dependencies:
     - aeson
     - containers
+    - directory
+    - filepath
     - process
     - split
     - time
@@ -53,10 +55,11 @@ tests:
     dependencies:
       - bytestring
       - directory
-      - hspec
       - seer
       - tasty
       - tasty-hspec
-      - tasty-smallcheck
+      - tasty-quickcheck
       - test-fixture
+      - time
+      - uuid
       - yaml

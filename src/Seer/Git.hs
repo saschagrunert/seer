@@ -7,11 +7,15 @@
 module Seer.Git (
     MonadGit,
     runGitCommand,
+    runGitCommandIO,
 ) where
 
-import Control.Exception (SomeException, try)
+import Control.Exception (try)
+import Data.Either (either)
+import System.Directory (withCurrentDirectory)
 import System.Exit (ExitCode(..))
-import System.Process
+import System.IO.Error (IOError)
+import System.Process (readProcessWithExitCode)
 
 -- | A abstraction Monad to isolate real IO Actions
 --
@@ -25,7 +29,10 @@ class Monad m => MonadGit m where
         -> m (ExitCode, String, String)
 
     -- A 'try' wrapper
-    try' :: m a -> m (Either SomeException a)
+    try' :: m a -> m (Either IOError a)
+
+    -- A 'withCurrentDirectory' wrapper
+    withCurrentDirectory' :: FilePath -> m a -> m a
 
 -- | The implementation of the isolation abstraction for the IO Monad
 --
@@ -33,6 +40,7 @@ class Monad m => MonadGit m where
 instance MonadGit IO where
     readProcessWithExitCode' = readProcessWithExitCode
     try' = try
+    withCurrentDirectory' = withCurrentDirectory
 
 -- | Run a git command, capture its standard output/error as 'String' and
 -- wait for it to complete. Returns 'Either' an error (Left) or the succeeding
@@ -41,31 +49,42 @@ instance MonadGit IO where
 -- Examples:
 --
 -- >>> :m +Data.Either
--- >>> runGitCommand "add ."
+-- >>> runGitCommand "add ." "."
 -- Right ""
 --
--- >>> runGitCommand "failure"
+-- >>> runGitCommand "failure" "."
 -- Left "git: 'failure' is not a git command. See 'git --help'.\n"
 --
 -- @since 0.1.0
 runGitCommand
     :: MonadGit m
     => String                   -- ^ The command to executed
+    -> String                   -- ^ The working directory
     -> m (Either String String) -- ^ 'Either' the error or the output
-runGitCommand a = do
-    r <- try' $ readProcessWithExitCode' "git" (words a) ""
-    case r of
-        Left  err -> return . Left $ show err
-        Right res -> evaluateProcessResult res
+runGitCommand a d = either (Left . show) f <$> try'
+    (withCurrentDirectory' d $ readProcessWithExitCode' "git" (words a) "")
+  where
+    f (ExitFailure _, _, e) = Left e
+    f (ExitSuccess  , o, _) = Right o
 
--- | Turns an 'ExitCode' and two 'String' for standard output/error and
--- turns them into either an error or an output 'String'
+-- | Run a "git" command, capture its standard error as 'IOError'. Returns the
+-- empty tuple if the command succeeded.
+--
+-- Examples:
+--
+-- >>> :m +Data.Either
+-- >>> runGitCommandIO "add ." "."
+-- Right ()
+--
+-- >>> runGitCommandIO "failure" "."
+-- Left user error (git: 'failure' is not a git command. See 'git --help'.
+-- )
 --
 -- @since 0.1.0
-evaluateProcessResult
+runGitCommandIO
     :: MonadGit m
-    => (ExitCode, String, String) -- ^ The outputs of the process
-    -> m (Either String String)   -- ^ The 'Either' result
-evaluateProcessResult (e, out, err) = case e of
-    ExitFailure _ -> return . Left $ err
-    ExitSuccess   -> return . Right $ out
+    => String                -- ^ The command
+    -> String                -- ^ The working directory
+    -> m (Either IOError ()) -- ^ The result
+runGitCommandIO c d = runGitCommand c d
+    >>= either (return . Left . userError) (\_ -> return $ Right ())

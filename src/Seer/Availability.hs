@@ -71,7 +71,7 @@ data WeekDay = Monday
              | Friday
              | Saturday
              | Sunday
-    deriving (Bounded, Eq, Enum, Generic, Ord, Show)
+    deriving (Eq, Enum, Generic, Ord, Show)
 
 -- | Parses the 'WeekDay' from YAML/JSON
 --
