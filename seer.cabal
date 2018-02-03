@@ -2,7 +2,7 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 3a950e609afb52180418b68894b2d3a1886d137c658eaaf8eaecfc465820f4bc
+-- hash: 5419846e4e26d8215e52dc1032780f0008ae99604206c7bc06d3e9c2d8ae38f3
 
 name:           seer
 version:        0.1.0
@@ -32,7 +32,8 @@ library
   hs-source-dirs:
       src
   build-depends:
-      aeson
+      Glob
+    , aeson
     , base >=4.7 && <5
     , containers
     , directory
@@ -44,12 +45,12 @@ library
     , yaml
   exposed-modules:
       Seer
+      Seer.Action
       Seer.Availability
-      Seer.Entity.Action
-      Seer.Entity.Manifest
-      Seer.Entity.Resource
-      Seer.Entity.Schedule
       Seer.Git
+      Seer.Manifest
+      Seer.Resource
+      Seer.Schedule
       Seer.Storage
   other-modules:
       Paths_seer

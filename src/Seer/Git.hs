@@ -13,8 +13,8 @@ module Seer.Git (
 import Control.Exception (try)
 import Data.Either (either)
 import System.Directory (withCurrentDirectory)
-import System.Exit (ExitCode(..))
-import System.IO.Error (IOError)
+import System.Exit (ExitCode(ExitFailure, ExitSuccess))
+import System.IO.Error (IOError, userError)
 import System.Process (readProcessWithExitCode)
 
 -- | A abstraction Monad to isolate real IO Actions

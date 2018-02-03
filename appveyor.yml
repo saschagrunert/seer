@@ -14,6 +14,6 @@ environment:
 
 test_script:
 - stack setup > nul
-# The ugly echo "" hack is to avoid complaints about 0 being an invalid file
-# descriptor
+- git config --global user.email "you@example.com"
+- git config --global user.name "Your Name
 - echo "" | stack --no-terminal test

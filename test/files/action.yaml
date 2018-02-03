@@ -1,10 +1,9 @@
----
-apiVersion: v1
+apiVersion: V1
 kind: Action
-metadata:
-  creationTimestamp: 2017-12-16T10:05:19Z
-  uid: 9f0709c3
 spec:
-  name: Do Something
-  description: Some fancy action
-  duration: 10h
+  name: name
+  duration: 0
+  description: null
+metadata:
+  uid: '00000000-0000-0000-0000-000000000000'
+  creationTimestamp: 0000-01-01T00:00:00Z

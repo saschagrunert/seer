@@ -4,19 +4,26 @@
 
 {-# LANGUAGE DeriveGeneric #-}
 
-module Seer.Entity.Action (
+module Seer.Action (
+    Action,
     ActionSpec(..),
+    Duration(..),
     new,
 ) where
 
 import Data.Char (isDigit)
 import Data.Yaml (FromJSON, ToJSON)
 import GHC.Generics (Generic)
-import Seer.Entity.Manifest (ApiVersion(V1)
-                            ,Manifest(Manifest)
-                            ,ResourceKind(Action)
-                            ,newMetadata)
+import Seer.Manifest (ApiVersion(V1)
+                     ,Manifest(Manifest)
+                     ,ResourceKind(Action)
+                     ,newMetadata)
 import qualified Data.Map as M (fromList, lookup)
+
+-- | A synonym for an Action
+--
+-- @since 0.1.0
+type Action = Manifest ActionSpec
 
 -- | The data specified for a Action
 --
@@ -40,10 +47,10 @@ instance ToJSON ActionSpec
 --
 -- @since 0.1.0
 new
-    :: String                           -- ^ The name of the Action
-    -> Maybe String                     -- ^ The description of the Action
-    -> String                           -- ^ The duration of the Action
-    -> IO (Maybe (Manifest ActionSpec)) -- ^ The result
+    :: String            -- ^ The name of the Action
+    -> Maybe String      -- ^ The description of the Action
+    -> String            -- ^ The duration of the Action
+    -> IO (Maybe Action) -- ^ The result
 new a b c =
     (\m -> (Manifest V1 Action m . ActionSpec a b) <$> parseDuration c)
         <$> newMetadata

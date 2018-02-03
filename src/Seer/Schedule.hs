@@ -4,7 +4,9 @@
 
 {-# LANGUAGE DeriveGeneric #-}
 
-module Seer.Entity.Schedule (
+module Seer.Schedule (
+    Schedule,
+    ScheduleSpec(..),
     new,
 ) where
 
@@ -12,10 +14,12 @@ import Data.Time.Clock (UTCTime)
 import Data.UUID (UUID)
 import Data.Yaml (FromJSON, ToJSON)
 import GHC.Generics (Generic)
-import Seer.Entity.Manifest (ApiVersion(V1)
-                            ,Manifest(Manifest)
-                            ,ResourceKind(Schedule)
-                            ,newMetadata)
+import Seer.Manifest (ApiVersion(V1), Manifest(Manifest), ResourceKind(Schedule), newMetadata)
+
+-- | A synonym for a Schedule
+--
+-- @since 0.1.0
+type Schedule = Manifest ScheduleSpec
 
 -- | The data specified for a Schedule
 --
@@ -40,10 +44,10 @@ instance ToJSON ScheduleSpec
 --
 -- @since 0.1.0
 new
-    :: UTCTime                    -- ^ The start date
-    -> UTCTime                    -- ^ The end date
-    -> UUID                       -- ^ The referenced 'Resource'
-    -> UUID                       -- ^ The referenced 'Action'
-    -> IO (Manifest ScheduleSpec) -- ^ The result
+    :: UTCTime     -- ^ The start date
+    -> UTCTime     -- ^ The end date
+    -> UUID        -- ^ The referenced 'Resource'
+    -> UUID        -- ^ The referenced 'Action'
+    -> IO Schedule -- ^ The result
 new a b c d =
     (\m -> Manifest V1 Schedule m $ ScheduleSpec a b c d) <$> newMetadata

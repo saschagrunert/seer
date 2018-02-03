@@ -27,6 +27,7 @@ library:
     - containers
     - directory
     - filepath
+    - Glob
     - process
     - split
     - time

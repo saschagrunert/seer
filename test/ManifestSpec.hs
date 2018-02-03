@@ -1,7 +1,7 @@
 module ManifestSpec (manifestSpec) where
 
 import Test.Tasty.Hspec (Spec, it, parallel, shouldNotBe)
-import Seer.Entity.Manifest (newMetadata)
+import Seer.Manifest (newMetadata)
 
 -- Manifest.hs related tests
 -- Unit tests

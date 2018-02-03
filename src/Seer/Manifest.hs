@@ -4,8 +4,9 @@
 
 {-# LANGUAGE DeriveGeneric #-}
 
-module Seer.Entity.Manifest (
+module Seer.Manifest (
     ApiVersion(..),
+    IsManifest(..),
     Manifest(..),
     Metadata(..),
     ResourceKind(..),
@@ -13,7 +14,7 @@ module Seer.Entity.Manifest (
 ) where
 
 import Data.Time.Clock (UTCTime, getCurrentTime)
-import Data.UUID (UUID)
+import Data.UUID (UUID, toString)
 import Data.UUID.V4 (nextRandom)
 import Data.Yaml (FromJSON, ToJSON)
 import GHC.Generics (Generic)
@@ -37,10 +38,23 @@ instance (FromJSON s) => FromJSON (Manifest s)
 -- @since 0.1.0
 instance (ToJSON s) => ToJSON (Manifest s)
 
+-- | Generic UUID retrieval class for Manifests
+--
+-- @since 0.1.0
+class IsManifest a where
+    uuidString :: a -> String
+
+-- | The implementation of the UUID retrieval
+--
+-- @since 0.1.0
+instance IsManifest (Manifest s) where
+    uuidString = toString . uid . metadata
+
 -- | The available API versions
 --
 -- @since 0.1.0
 data ApiVersion = V1 -- ^ Version 1
+                | V2 -- ^ Version 2
     deriving (Eq, Enum, Generic, Show)
 
 -- | Parses the 'Version' from YAML/JSON

@@ -24,7 +24,7 @@ module Seer.Availability (
 import Control.Monad (foldM, mapM)
 import Data.Aeson.Types (FromJSONKey, ToJSONKey)
 import Data.List.Split (splitOn)
-import Data.Time.LocalTime (TimeOfDay(..))
+import Data.Time.LocalTime (TimeOfDay(TimeOfDay))
 import Data.Yaml (FromJSON, ToJSON)
 import GHC.Generics (Generic)
 import qualified Data.Map.Strict as M (Map

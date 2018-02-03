@@ -1,7 +1,7 @@
 module ResourceSpec (resourceSpec) where
 
 import Test.Tasty.Hspec (Spec, it, parallel, shouldNotBe)
-import Seer.Entity.Resource (new)
+import Seer.Resource (new)
 import Seer.Availability (weekAvailable)
 
 -- Resource.hs related tests

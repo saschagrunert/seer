@@ -11,12 +11,12 @@ module GitSpec (gitSpec) where
 import Control.Monad.TestFixture (unTestFixture)
 import Control.Monad.TestFixture.TH (def, mkFixture, ts)
 import Data.Either (Either(..), isLeft, isRight)
+import Seer.Git (MonadGit, runGitCommand, runGitCommandIO)
 import System.Exit (ExitCode(..))
 import System.IO.Error (userError)
 import Test.Tasty.Hspec (Spec, it, parallel, shouldBe, shouldReturn)
-import Seer.Git (MonadGit, runGitCommand, runGitCommandIO)
 
-mkFixture "MonadGitFixture" [ts| MonadGit |]
+mkFixture "Fixture" [ts| MonadGit |]
 
 -- Git.hs related tests
 -- Unit tests

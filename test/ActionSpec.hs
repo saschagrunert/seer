@@ -1,6 +1,6 @@
 module ActionSpec (actionSpec) where
 
-import Seer.Entity.Action (new)
+import Seer.Action (new)
 import Test.Tasty.Hspec (Spec, it, parallel, shouldNotBe)
 
 -- Action.hs related tests

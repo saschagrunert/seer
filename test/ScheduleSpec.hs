@@ -2,7 +2,7 @@ module ScheduleSpec (scheduleSpec) where
 
 import Data.Time.Clock (getCurrentTime)
 import Data.UUID.V4 (nextRandom)
-import Seer.Entity.Schedule (new)
+import Seer.Schedule (new)
 import Test.Tasty.Hspec (Spec, it, parallel, shouldNotBe)
 
 -- Schedule.hs related tests
