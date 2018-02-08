@@ -2,11 +2,11 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 5419846e4e26d8215e52dc1032780f0008ae99604206c7bc06d3e9c2d8ae38f3
+-- hash: 0e3794364b4048dc089fa01d02aaa84ece19da8fbda5a8b76ef5bf132f1ebcd0
 
 name:           seer
 version:        0.1.0
-synopsis:       A collaborative product vision, roadmap and resource planning tool.
+synopsis:       A collaborative resource planning tool.
 description:    Please see the README on Github at <https://github.com/saschagrunert/seer#readme>
 category:       Tools
 homepage:       https://github.com/saschagrunert/seer#readme
@@ -21,7 +21,6 @@ build-type:     Simple
 cabal-version:  >= 1.10
 
 extra-source-files:
-    ChangeLog.md
     README.md
 
 source-repository head
@@ -35,6 +34,7 @@ library
       Glob
     , aeson
     , base >=4.7 && <5
+    , boxes
     , containers
     , directory
     , filepath
@@ -47,6 +47,7 @@ library
       Seer
       Seer.Action
       Seer.Availability
+      Seer.Config
       Seer.Git
       Seer.Manifest
       Seer.Resource
@@ -60,11 +61,14 @@ executable seer-exe
   main-is: Main.hs
   hs-source-dirs:
       app
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -rtsopts -threaded -with-rtsopts=-N
   build-depends:
-      base >=4.7 && <5
+      ansi-terminal
+    , base >=4.7 && <5
+    , optparse-applicative
     , seer
   other-modules:
+      Cli
       Paths_seer
   default-language: Haskell2010
 
@@ -73,7 +77,7 @@ test-suite seer-test
   main-is: Spec.hs
   hs-source-dirs:
       test
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -rtsopts -threaded -with-rtsopts=-N
   build-depends:
       base >=4.7 && <5
     , bytestring
@@ -89,10 +93,12 @@ test-suite seer-test
   other-modules:
       ActionSpec
       AvailabilitySpec
+      ConfigSpec
       GitSpec
       ManifestSpec
       ResourceSpec
       ScheduleSpec
+      SeerSpec
       StorageSpec
       Paths_seer
   default-language: Haskell2010

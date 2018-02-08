@@ -4,18 +4,16 @@
 
 {-# LANGUAGE OverloadedStrings #-}
 
-module Seer.Git (
-    MonadGit,
-    runGitCommand,
-    runGitCommandIO,
-) where
+module Seer.Git (MonadGit
+                ,runGitCommand
+                ,runGitCommandIO) where
 
 import Control.Exception (try)
-import Data.Either (either)
-import System.Directory (withCurrentDirectory)
-import System.Exit (ExitCode(ExitFailure, ExitSuccess))
-import System.IO.Error (IOError, userError)
-import System.Process (readProcessWithExitCode)
+import Data.Either       (either)
+import System.Directory  (withCurrentDirectory)
+import System.Exit       (ExitCode (ExitFailure, ExitSuccess))
+import System.IO.Error   (IOError, userError)
+import System.Process    (readProcessWithExitCode)
 
 -- | A abstraction Monad to isolate real IO Actions
 --
@@ -57,15 +55,29 @@ instance MonadGit IO where
 --
 -- @since 0.1.0
 runGitCommand
-    :: MonadGit m
-    => String                   -- ^ The command to executed
-    -> String                   -- ^ The working directory
-    -> m (Either String String) -- ^ 'Either' the error or the output
-runGitCommand a d = either (Left . show) f <$> try'
-    (withCurrentDirectory' d $ readProcessWithExitCode' "git" (words a) "")
-  where
-    f (ExitFailure _, _, e) = Left e
-    f (ExitSuccess  , o, _) = Right o
+  :: MonadGit m
+  => String                   -- ^ The command to executed
+  -> String                   -- ^ The working directory
+  -> m (Either String String) -- ^ 'Either' the error or the output
+runGitCommand a d = either (Left . show) f
+  <$> try' (withCurrentDirectory' d $ readProcessWithExitCode' "git" (split a) "")
+ where
+  f (ExitFailure _, _, e) = Left e
+  f (ExitSuccess  , o, _) = Right o
+  split = outside [] . (' ' :)
+  outside res xs = case xs of
+    ' ':' ' :ys -> outside res $ ' ' : ys
+    ' ':'\'':ys -> res ++ inside [] ys
+    ' '     :ys -> res ++ outside [] ys
+    c       :ys -> outside (add c res) ys
+    _           -> res
+  inside res xs = case xs of
+    ' ' :' ':   ys -> inside res $ ' ' : ys
+    '\'':' ':   ys -> res ++ outside [] (' ' : ys)
+    [       '\'']  -> res
+    c       :   ys -> inside (add c res) ys
+    _              -> res
+  add c res = if null res then [[c]] else map (++ [c]) res
 
 -- | Run a "git" command, capture its standard error as 'IOError'. Returns the
 -- empty tuple if the command succeeded.
@@ -82,9 +94,8 @@ runGitCommand a d = either (Left . show) f <$> try'
 --
 -- @since 0.1.0
 runGitCommandIO
-    :: MonadGit m
-    => String                -- ^ The command
-    -> String                -- ^ The working directory
-    -> m (Either IOError ()) -- ^ The result
-runGitCommandIO c d = runGitCommand c d
-    >>= either (return . Left . userError) (\_ -> return $ Right ())
+  :: MonadGit m
+  => String                -- ^ The command
+  -> String                -- ^ The working directory
+  -> m (Either IOError ()) -- ^ The result
+runGitCommandIO c d = runGitCommand c d >>= either (return . Left . userError) (\_ -> return $ Right ())

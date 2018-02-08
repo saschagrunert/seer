@@ -1,32 +1,32 @@
 -- | This module includes everything about a the global object 'Manifest'
 --
 -- @since 0.1.0
-
 {-# LANGUAGE DeriveGeneric #-}
 
-module Seer.Manifest (
-    ApiVersion(..),
-    IsManifest(..),
-    Manifest(..),
-    Metadata(..),
-    ResourceKind(..),
-    newMetadata,
-) where
+module Seer.Manifest
+  ( ApiVersion(..)
+  , IsManifest(..)
+  , Manifest(..)
+  , Metadata(..)
+  , ResourceKind(..)
+  , newMetadata
+  ) where
 
 import Data.Time.Clock (UTCTime, getCurrentTime)
-import Data.UUID (UUID, toString)
-import Data.UUID.V4 (nextRandom)
-import Data.Yaml (FromJSON, ToJSON)
-import GHC.Generics (Generic)
+import Data.UUID       (UUID, toString)
+import Data.UUID.V4    (nextRandom)
+import Data.Yaml       (FromJSON, ToJSON)
+import GHC.Generics    (Generic)
 
 -- | The data specified for a 'Manifest'
 --
 -- @since 0.1.0
-data Manifest s = Manifest { apiVersion :: ApiVersion -- ^ The API Version
-                           , kind :: ResourceKind     -- ^ The resource Kind
-                           , metadata :: Metadata     -- ^ Resource metadata
-                           , spec :: s                -- ^ The specification of the Resource
-                           } deriving (Eq, Generic, Show)
+data Manifest s = Manifest
+  { apiVersion :: ApiVersion -- ^ The API Version
+  , kind       :: ResourceKind -- ^ The resource Kind
+  , metadata   :: Metadata -- ^ Resource metadata
+  , spec       :: s -- ^ The specification of the Resource
+  } deriving (Eq, Generic, Show)
 
 -- | Parses the 'Manifest' from YAML/JSON
 --
@@ -42,20 +42,21 @@ instance (ToJSON s) => ToJSON (Manifest s)
 --
 -- @since 0.1.0
 class IsManifest a where
-    uuidString :: a -> String
+  uuidString :: a -> String
 
 -- | The implementation of the UUID retrieval
 --
 -- @since 0.1.0
 instance IsManifest (Manifest s) where
-    uuidString = toString . uid . metadata
+  uuidString = toString . uid . metadata
 
 -- | The available API versions
 --
 -- @since 0.1.0
-data ApiVersion = V1 -- ^ Version 1
-                | V2 -- ^ Version 2
-    deriving (Eq, Enum, Generic, Show)
+data ApiVersion
+  = V1 -- ^ Version 1
+  | V2 -- ^ Version 2
+  deriving (Eq, Enum, Generic, Show)
 
 -- | Parses the 'Version' from YAML/JSON
 --
@@ -70,10 +71,12 @@ instance ToJSON ApiVersion
 -- | The available API Kinds
 --
 -- @since 0.1.0
-data ResourceKind = Action   -- ^ References a 'Action'
-                  | Resource -- ^ References a 'Resource'
-                  | Schedule -- ^ References a 'Schedule'
-    deriving (Eq, Generic, Show)
+data ResourceKind
+  = Config -- ^ References a 'Config'
+  | Action -- ^ References a 'Action'
+  | Resource -- ^ References a 'Resource'
+  | Schedule -- ^ References a 'Schedule'
+  deriving (Eq, Generic, Show)
 
 -- | Parses the 'ResourceKind' from YAML/JSON
 --
@@ -88,9 +91,10 @@ instance ToJSON ResourceKind
 -- | The data specified for a Metadata object
 --
 -- @since 0.1.0
-data Metadata = Metadata { creationTimestamp :: UTCTime  -- ^ The creation time of the Metadata
-                         , uid :: UUID                   -- ^ The unique ID for this Metadata
-                         } deriving (Eq, Generic, Show)
+data Metadata = Metadata
+  { creationTimestamp :: UTCTime -- ^ The creation time of the Metadata
+  , uid               :: UUID -- ^ The unique ID for this Metadata
+  } deriving (Eq, Generic, Show)
 
 -- | Parses the 'Metadata' from YAML/JSON
 --
@@ -107,6 +111,6 @@ instance ToJSON Metadata
 -- @since 0.1.0
 newMetadata :: IO Metadata
 newMetadata = do
-    time <- getCurrentTime
-    uuid <- nextRandom
-    return Metadata {creationTimestamp = time, uid = uuid}
+  time <- getCurrentTime
+  uuid <- nextRandom
+  return Metadata {creationTimestamp = time, uid = uuid}

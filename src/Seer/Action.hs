@@ -1,24 +1,21 @@
 -- | This module includes everything about a 'Action'.
 --
 -- @since 0.1.0
-
 {-# LANGUAGE DeriveGeneric #-}
 
-module Seer.Action (
-    Action,
-    ActionSpec(..),
-    Duration(..),
-    new,
-) where
+module Seer.Action
+  ( Action
+  , ActionSpec(..)
+  , Duration(..)
+  , new
+  ) where
 
-import Data.Char (isDigit)
-import Data.Yaml (FromJSON, ToJSON)
-import GHC.Generics (Generic)
-import Seer.Manifest (ApiVersion(V1)
-                     ,Manifest(Manifest)
-                     ,ResourceKind(Action)
-                     ,newMetadata)
-import qualified Data.Map as M (fromList, lookup)
+import           Data.Char     (isDigit)
+import qualified Data.Map      as M (fromList, lookup)
+import           Data.Yaml     (FromJSON, ToJSON)
+import           GHC.Generics  (Generic)
+import           Seer.Manifest (ApiVersion (V1), Manifest (Manifest),
+                                ResourceKind (Action), newMetadata)
 
 -- | A synonym for an Action
 --
@@ -28,10 +25,11 @@ type Action = Manifest ActionSpec
 -- | The data specified for a Action
 --
 -- @since 0.1.0
-data ActionSpec = ActionSpec { name :: String              -- ^ The name of the Action
-                             , description :: Maybe String -- ^ The general description of the Action
-                             , duration :: Duration        -- ^ The duration of the Action
-                             } deriving (Eq, Generic, Show)
+data ActionSpec = ActionSpec
+  { name        :: String -- ^ The name of the Action
+  , description :: Maybe String -- ^ The general description of the Action
+  , duration    :: Duration -- ^ The duration of the Action
+  } deriving (Eq, Generic, Show)
 
 -- | Parses the 'ActionSpec' from YAML/JSON
 --
@@ -47,19 +45,18 @@ instance ToJSON ActionSpec
 --
 -- @since 0.1.0
 new
-    :: String            -- ^ The name of the Action
-    -> Maybe String      -- ^ The description of the Action
-    -> String            -- ^ The duration of the Action
-    -> IO (Maybe Action) -- ^ The result
-new a b c =
-    (\m -> (Manifest V1 Action m . ActionSpec a b) <$> parseDuration c)
-        <$> newMetadata
+  :: String -- ^ The name of the Action
+  -> Maybe String -- ^ The description of the Action
+  -> String -- ^ The duration of the Action
+  -> IO (Maybe Action) -- ^ The result
+new a b c = (\m -> (Manifest V1 Action m . ActionSpec a b) <$> parseDuration c) <$> newMetadata
 
 -- | Generates the YAML/JSON from an 'ActionSpec'
 --
 -- @since 0.1.0
-newtype Duration = Duration Integer
-    deriving (Eq, Generic, Show)
+newtype Duration =
+  Duration Integer
+  deriving (Eq, Generic, Show)
 
 -- | Parses the 'Duration' from YAML/JSON
 --
@@ -77,22 +74,22 @@ instance ToJSON Duration
 -- @since 0.1.0
 parseDuration :: String -> Maybe Duration
 parseDuration = f 0
-  where
-    f n [] = Just $ Duration n
-    f n s  = do
-        num <- readish s
-        case dropWhile isDigit (strip s) of
-            (c:rest) -> do
-                u <- M.lookup c $ M.fromList units
-                f (n + num * u) rest
-            _ -> Just . Duration $ n + num
-    readish s = case reads s of
-        ((x, _):_) -> Just x
-        _          -> Nothing
-    strip = filter (/= ' ')
-    units = [('y', ysecs), ('d', dsecs), ('h', hsecs), ('m', msecs)]
-      where
-        ysecs = dsecs * 365
-        dsecs = hsecs * 24
-        hsecs = 60
-        msecs = 1
+ where
+  f n [] = Just $ Duration n
+  f n s  = do
+    num <- readish s
+    case dropWhile isDigit (strip s) of
+      (c:rest) -> do
+        u <- M.lookup c $ M.fromList units
+        f (n + num * u) rest
+      _ -> Just . Duration $ n + num
+  readish s = case reads s of
+    ((x, _):_) -> Just x
+    _          -> Nothing
+  strip = filter (/= ' ')
+  units = [('y', ysecs), ('d', dsecs), ('h', hsecs), ('m', msecs)]
+   where
+    ysecs = dsecs * 365
+    dsecs = hsecs * 24
+    hsecs = 60
+    msecs = 1

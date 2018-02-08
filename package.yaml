@@ -10,9 +10,8 @@ tested-with: GHC == 8.0.2, GHC == 8.2.2
 
 extra-source-files:
   - README.md
-  - ChangeLog.md
 
-synopsis: A collaborative product vision, roadmap and resource planning tool.
+synopsis: A collaborative resource planning tool.
 category: Tools
 description: Please see the README on Github at
   <https://github.com/saschagrunert/seer#readme>
@@ -23,11 +22,12 @@ dependencies:
 library:
   source-dirs: src
   dependencies:
+    - Glob
     - aeson
+    - boxes
     - containers
     - directory
     - filepath
-    - Glob
     - process
     - split
     - time
@@ -39,10 +39,12 @@ executables:
     main: Main.hs
     source-dirs: app
     ghc-options:
-      - -threaded
       - -rtsopts
+      - -threaded
       - -with-rtsopts=-N
     dependencies:
+      - ansi-terminal
+      - optparse-applicative
       - seer
 
 tests:
@@ -50,8 +52,8 @@ tests:
     main: Spec.hs
     source-dirs: test
     ghc-options:
-      - -threaded
       - -rtsopts
+      - -threaded
       - -with-rtsopts=-N
     dependencies:
       - bytestring
