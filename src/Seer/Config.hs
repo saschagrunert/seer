@@ -7,12 +7,14 @@ module Seer.Config
   ( Config
   , ConfigSpec(..)
   , new
+  , toList
   ) where
 
 import Data.Yaml     (FromJSON, ToJSON)
 import GHC.Generics  (Generic)
 import Seer.Manifest (ApiVersion (V1), Manifest (Manifest),
-                      ResourceKind (Config), newMetadata)
+                      ResourceKind (Config), ToList (toList),
+                      newMetadata)
 
 -- | A synonym for the Config
 --
@@ -23,7 +25,7 @@ type Config = Manifest ConfigSpec
 --
 -- @since 0.1.0
 newtype ConfigSpec = ConfigSpec
-  { storage :: Maybe String
+  { storage :: String
   } deriving (Eq, Generic, Show)
 
 -- | Parses the 'ConfigSpec' from YAML/JSON
@@ -36,8 +38,16 @@ instance FromJSON ConfigSpec
 -- @since 0.1.0
 instance ToJSON ConfigSpec
 
+-- | Encode a 'ConfigSpec' as a list of Strings
+--
+-- @since 0.1.0
+instance ToList ConfigSpec where
+  toList x = pure $ storage x
+
 -- | Create a new default configuration
 --
 -- @since 0.1.0
-new :: IO Config -- ^ The result
-new = (\m -> Manifest V1 Config m $ ConfigSpec Nothing) <$> newMetadata
+new
+  :: String    -- ^ The name of the storage
+  -> IO Config -- ^ The result
+new n = (\m -> Manifest V1 Config m $ ConfigSpec n) <$> newMetadata

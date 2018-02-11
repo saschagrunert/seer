@@ -19,17 +19,8 @@ import System.Process    (readProcessWithExitCode)
 --
 -- @since 0.1.0
 class Monad m => MonadGit m where
-    -- A 'readProcessWithExitCode' wrapper
-    readProcessWithExitCode'
-        :: FilePath
-        -> [String]
-        -> String
-        -> m (ExitCode, String, String)
-
-    -- A 'try' wrapper
+    readProcessWithExitCode' :: FilePath -> [String] -> String -> m (ExitCode, String, String)
     try' :: m a -> m (Either IOError a)
-
-    -- A 'withCurrentDirectory' wrapper
     withCurrentDirectory' :: FilePath -> m a -> m a
 
 -- | The implementation of the isolation abstraction for the IO Monad
@@ -59,8 +50,8 @@ runGitCommand
   => String                   -- ^ The command to executed
   -> String                   -- ^ The working directory
   -> m (Either String String) -- ^ 'Either' the error or the output
-runGitCommand a d = either (Left . show) f
-  <$> try' (withCurrentDirectory' d $ readProcessWithExitCode' "git" (split a) "")
+runGitCommand a d = either (Left . show) f <$> try'
+  (withCurrentDirectory' d $ readProcessWithExitCode' "git" (split a) "")
  where
   f (ExitFailure _, _, e) = Left e
   f (ExitSuccess  , o, _) = Right o
@@ -98,4 +89,5 @@ runGitCommandIO
   => String                -- ^ The command
   -> String                -- ^ The working directory
   -> m (Either IOError ()) -- ^ The result
-runGitCommandIO c d = runGitCommand c d >>= either (return . Left . userError) (\_ -> return $ Right ())
+runGitCommandIO c d = runGitCommand c d
+  >>= either (return . Left . userError) (\_ -> return $ Right ())

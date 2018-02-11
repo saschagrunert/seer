@@ -1,21 +1,23 @@
 -- | The main test module
 --
 -- @since 0.1.0
-module Main where
 
+module Main
+  ( main
+  ) where
+
+import ActionSpec            (actionProps, actionSpec)
+import AvailabilitySpec      (availabilityProps, availabilitySpec)
+import ConfigSpec            (configProps, configSpec)
+import GitSpec               (gitSpec)
+import ManifestSpec          (manifestSpec)
+import ResourceSpec          (resourceProps, resourceSpec)
+import ScheduleSpec          (scheduleProps, scheduleSpec)
+import SeerSpec              (seerSpec)
+import StorageSpec           (storageSpec)
 import Test.Tasty            (TestTree, defaultMain, localOption, testGroup)
 import Test.Tasty.Hspec      (testSpec)
 import Test.Tasty.QuickCheck (QuickCheckTests (QuickCheckTests))
-
-import ActionSpec            (actionSpec)
-import AvailabilitySpec      (availabilityProps, availabilitySpec)
-import ConfigSpec            (configSpec)
-import GitSpec               (gitSpec)
-import ManifestSpec          (manifestSpec)
-import ResourceSpec          (resourceSpec)
-import SeerSpec              (seerSpec)
-import ScheduleSpec          (scheduleSpec)
-import StorageSpec           (storageSpec)
 
 -- The main test routine
 main :: IO ()
@@ -51,4 +53,6 @@ unitTests = do
 
 -- Property tests based on quickcheck and smallcheck
 properties :: TestTree
-properties = testGroup "Properties" [availabilityProps]
+properties = testGroup
+  "Properties"
+  [actionProps, availabilityProps, configProps, resourceProps, scheduleProps]

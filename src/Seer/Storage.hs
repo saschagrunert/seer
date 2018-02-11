@@ -17,6 +17,7 @@ module Seer.Storage (
     saveConfig,
     saveResources,
     saveSchedules,
+    storageExist,
 ) where
 
 import Control.Exception     (try)
@@ -35,8 +36,8 @@ import Seer.Manifest         (IsManifest (uuidString))
 import Seer.Resource         (Resource)
 import Seer.Schedule         (Schedule)
 import System.Directory      (createDirectory, createDirectoryIfMissing,
-                              getHomeDirectory, listDirectory,
-                              removeDirectoryRecursive)
+                              doesDirectoryExist, getHomeDirectory,
+                              listDirectory, removeDirectoryRecursive)
 import System.FilePath.Glob  (compile, globDir1)
 import System.FilePath.Posix ((<.>), (</>))
 import System.IO.Error       (IOError, userError)
@@ -50,37 +51,16 @@ type Storage = String
 --
 -- @since 0.1.0
 class Monad m => MonadStorage m where
-  -- A 'decodeFileEither' wrapper
   decodeFileEither' :: FromJSON a => FilePath -> m (Either ParseException a)
-
-  -- A 'runGitCommand' wrapper
   runGitCommand' :: String -> String -> m (Either String String)
-
-  -- A 'runGitCommandIO' wrapper
   runGitCommandIO' :: String -> String -> m (Either IOError ())
-
-  -- A 'encodeFile' wrapper
-  tryEncodeFile' :: ToJSON a => FilePath -> a -> m (Either IOError ())
-
-  -- A 'try createDirectory' wrapper
   tryCreateDirectory' :: FilePath -> m (Either IOError ())
-
-  -- A 'try createDirectoryIfMissing' wrapper
   tryCreateDirectoryIfMissing' :: FilePath -> m (Either IOError ())
-
-  -- A 'try getHomeDirectory' wrapper
+  tryEncodeFile' :: ToJSON a => FilePath -> a -> m (Either IOError ())
   tryGetHomeDirectory' :: m (Either IOError FilePath)
-
-  -- A 'try listDirectory' wrapper
   tryListDirectory' :: FilePath -> m (Either IOError [FilePath])
-
-  -- A 'try' yaml file globbing wrapper
   tryListYamlFiles' :: FilePath -> m (Either IOError [FilePath])
-
-  -- A 'try removeDirectoryRecursive' wrapper
   tryRemoveDirectoryRecursive' :: FilePath -> m (Either IOError ())
-
-  -- A 'try writeFile' wrapper
   tryWriteFile' :: FilePath -> String -> m (Either IOError ())
 
 -- | The implementation of the isolation abstraction for the IO Monad
@@ -90,12 +70,16 @@ instance MonadStorage IO where
     decodeFileEither' = decodeFileEither
     runGitCommand' = runGitCommand
     runGitCommandIO' = runGitCommandIO
-    tryEncodeFile' p e = try $ encodeFile p e
     tryCreateDirectory' = try . createDirectory
     tryCreateDirectoryIfMissing' f = try $ createDirectoryIfMissing True f
-    tryListDirectory' f = try $ sort <$> listDirectory f
-    tryListYamlFiles' f = try . flip globDir1 f . compile $ "*." ++ yamlExt
+    tryEncodeFile' p e = try $ encodeFile p e
     tryGetHomeDirectory' = try getHomeDirectory
+    tryListDirectory' f = try $ sort <$> listDirectory f
+    tryListYamlFiles' f = doesDirectoryExist f
+      >>= (\l ->
+        if l
+        then try . flip globDir1 f . compile $ "*." ++ yamlExt
+        else return . Left . userError $ "directory does not exist: " ++ f)
     tryRemoveDirectoryRecursive' = try . removeDirectoryRecursive
     tryWriteFile' f s = try $ writeFile f s
 
@@ -109,13 +93,13 @@ instance MonadStorage IO where
   -> f1 (f2 FilePath) -- ^ The resulting FilePath
 a <//> b = fmap (</> b) <$> a
 
-seerDir :: MonadStorage m => m (Either IOError FilePath)
+seerDir :: MonadStorage m => m (Either IOError FilePath) -- ^ The result
 seerDir = tryGetHomeDirectory' <//> ".seer"
 
 -- | The global storage cache directory
 --
 -- @since 0.1.0
-cacheDir :: MonadStorage m => m (Either IOError FilePath)
+cacheDir :: MonadStorage m => m (Either IOError FilePath) -- ^ The result
 cacheDir = seerDir <//> "cache"
 
 -- |  The storage directory
@@ -230,20 +214,25 @@ createKeepFiles n = foldM
 -- | Create the global cache directory for all storages
 --
 -- @since 0.1.0
-createCacheDir
-  :: (MonadStorage m)
-  => m (Either IOError ()) -- ^ The result
+createCacheDir :: (MonadStorage m) => m (Either IOError ()) -- ^ The result
 createCacheDir = cacheDir >>- tryCreateDirectoryIfMissing'
 
 -- | Lists all currently available storage instances including their remote
 -- location
 --
 -- @since 0.1.0
-list
-  :: (MonadStorage m)
-  => m (Either IOError [[String]]) -- ^ The result
+list :: (MonadStorage m) => m (Either IOError [[String]]) -- ^ The result
 list = listStorages >>- (\d -> (Right . zipWith f d) <$> mapM remote d)
   where f a b = [a, b]
+
+-- | Evaluates to `True` if a `Storage` exists
+--
+-- @since 0.1.0
+storageExist
+  :: MonadStorage m
+  => Storage                 -- ^ The name of the Storage
+  -> m (Either IOError Bool) -- ^ The result
+storageExist n = listStorages >>- (\s -> return . Right $ n `elem` s)
 
 -- | Lists all currently available storage instances
 --
@@ -255,7 +244,7 @@ listStorages = cacheDir >>- tryListDirectory'
 --
 -- @since 0.1.0
 remote
-  :: (MonadStorage m)
+  :: MonadStorage m
   => Storage  -- ^ The name of the storage
   -> m String -- ^ The result
 remote n = storageDir n >>= either
@@ -266,7 +255,9 @@ remote n = storageDir n >>= either
 -- | Drops all trailing whitespace from a String
 --
 -- @since 0.1.0
-rstrip :: String -> String -- ^ The result
+rstrip
+  :: String -- ^ The String to be stripped
+  -> String -- ^ The result
 rstrip = reverse . dropWhile isSpace . reverse
 
 -- | Create a new storage for the given name and optional remote location. This
@@ -290,7 +281,7 @@ rstrip = reverse . dropWhile isSpace . reverse
 --
 -- @since 0.1.0
 new
-  :: (MonadStorage m)
+  :: MonadStorage m
   => Storage               -- ^ The name of the storage
   -> Maybe String          -- ^ The remote URL of the storage
   -> m (Either IOError ()) -- ^ The result
@@ -311,7 +302,7 @@ new n r =
 --
 -- @since 0.1.0
 save
-  :: (MonadStorage m)
+  :: MonadStorage m
   => Storage               -- ^ The name of the storage
   -> m (Either IOError ()) -- ^ The result
 save n = runGit ["add .", "commit --allow-empty -m Update"] n >>> sync n
@@ -320,7 +311,7 @@ save n = runGit ["add .", "commit --allow-empty -m Update"] n >>> sync n
 --
 -- @since 0.1.0
 sync
-  :: (MonadStorage m)
+  :: MonadStorage m
   => Storage               -- ^ The name of the storage
   -> m (Either IOError ()) -- ^ The result
 sync d =
@@ -360,7 +351,7 @@ loadFiles
   => [FilePath]             -- ^ The list of FilePaths
   -> m (Either IOError [a]) -- ^ The result
 loadFiles =
-  foldM (\a v -> loadFile v >>= (\r -> return ((:) <$> r <*> a))) (Right [])
+  foldM (\a v -> loadFile v >>= (\r -> return ((:) <$> r <*> a))) $ Right []
 
 -- | Load certain entities from a directory into a list
 --
@@ -375,7 +366,7 @@ loadEntities n = n >>- tryListYamlFiles' >>- loadFiles
 --
 -- @since 0.1.0
 loadActions
-  :: (MonadStorage m)
+  :: MonadStorage m
   => Storage                     -- ^ The name of the storage
   -> m (Either IOError [Action]) -- ^ The result
 loadActions = loadEntities . actionsDir
@@ -384,7 +375,7 @@ loadActions = loadEntities . actionsDir
 --
 -- @since 0.1.0
 loadResources
-  :: (MonadStorage m)
+  :: MonadStorage m
   => Storage                       -- ^ The name of the storage
   -> m (Either IOError [Resource]) -- ^ The result
 loadResources = loadEntities . resourcesDir
@@ -393,7 +384,7 @@ loadResources = loadEntities . resourcesDir
 --
 -- @since 0.1.0
 loadSchedules
-  :: (MonadStorage m)
+  :: MonadStorage m
   => Storage                       -- ^ The name of the storage
   -> m (Either IOError [Schedule]) -- ^ The result
 loadSchedules = loadEntities . schedulesDir
@@ -401,7 +392,7 @@ loadSchedules = loadEntities . schedulesDir
 -- | Load the Config from the configuration directory.
 --
 -- @since 0.1.0
-loadConfig :: (MonadStorage m) => m (Either IOError Config) -- ^ The result
+loadConfig :: MonadStorage m => m (Either IOError Config) -- ^ The result
 loadConfig = configPath >>- loadFile
 
 -- | Save the given list of 'ToJSON a' to the 'FilePath'
@@ -430,7 +421,7 @@ saveEntities f n a = f n >>- saveFiles a
 --
 -- @since 0.1.0
 saveActions
-  :: (MonadStorage m)
+  :: MonadStorage m
   => Storage               -- ^ The name of the storage
   -> [Action]              -- ^ The 'Action's to be stored
   -> m (Either IOError ()) -- ^ The result
@@ -440,7 +431,7 @@ saveActions = saveEntities actionsDir
 --
 -- @since 0.1.0
 saveResources
-  :: (MonadStorage m)
+  :: MonadStorage m
   => Storage               -- ^ The name of the storage
   -> [Resource]            -- ^ The 'Resource's to be stored
   -> m (Either IOError ()) -- ^ The result
@@ -450,7 +441,7 @@ saveResources = saveEntities resourcesDir
 --
 -- @since 0.1.0
 saveSchedules
-  :: (MonadStorage m)
+  :: MonadStorage m
   => Storage               -- ^ The name of the storage
   -> [Schedule]            -- ^ The 'Schedule's to be stored
   -> m (Either IOError ()) -- ^ The result
@@ -460,7 +451,10 @@ saveSchedules = saveEntities schedulesDir
 -- if missing.
 --
 -- @since 0.1.0
-saveConfig :: (MonadStorage m) => Config -> m (Either IOError ()) -- ^ The result
+saveConfig
+  :: MonadStorage m
+  => Config                -- ^ The configuration to be saved
+  -> m (Either IOError ()) -- ^ The result
 saveConfig c =
   seerDir
     >>- tryCreateDirectoryIfMissing'

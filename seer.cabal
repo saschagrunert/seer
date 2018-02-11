@@ -2,7 +2,7 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 0e3794364b4048dc089fa01d02aaa84ece19da8fbda5a8b76ef5bf132f1ebcd0
+-- hash: 2f21b3cd88fdf13f3906b25a0946e48dbe8cfbb3439f6cc2f6caa0e0fdc2a258
 
 name:           seer
 version:        0.1.0
@@ -61,7 +61,7 @@ executable seer-exe
   main-is: Main.hs
   hs-source-dirs:
       app
-  ghc-options: -rtsopts -threaded -with-rtsopts=-N
+  ghc-options: -rtsopts -threaded -with-rtsopts=-N -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints
   build-depends:
       ansi-terminal
     , base >=4.7 && <5
@@ -77,7 +77,7 @@ test-suite seer-test
   main-is: Spec.hs
   hs-source-dirs:
       test
-  ghc-options: -rtsopts -threaded -with-rtsopts=-N
+  ghc-options: -rtsopts -threaded -with-rtsopts=-N -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -Wno-unused-top-binds
   build-depends:
       base >=4.7 && <5
     , bytestring
@@ -100,5 +100,6 @@ test-suite seer-test
       ScheduleSpec
       SeerSpec
       StorageSpec
+      TestData
       Paths_seer
   default-language: Haskell2010

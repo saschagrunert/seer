@@ -1,9 +1,0 @@
-apiVersion: V1
-kind: Action
-spec:
-  name: name
-  duration: 0
-  description: null
-metadata:
-  uid: '00000000-0000-0000-0000-000000000000'
-  creationTimestamp: 0000-01-01T00:00:00Z

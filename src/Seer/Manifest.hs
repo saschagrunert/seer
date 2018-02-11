@@ -1,6 +1,7 @@
 -- | This module includes everything about a the global object 'Manifest'
 --
 -- @since 0.1.0
+
 {-# LANGUAGE DeriveGeneric #-}
 
 module Seer.Manifest
@@ -9,6 +10,7 @@ module Seer.Manifest
   , Manifest(..)
   , Metadata(..)
   , ResourceKind(..)
+  , ToList(..)
   , newMetadata
   ) where
 
@@ -22,27 +24,39 @@ import GHC.Generics    (Generic)
 --
 -- @since 0.1.0
 data Manifest s = Manifest
-  { apiVersion :: ApiVersion -- ^ The API Version
+  { apiVersion :: ApiVersion   -- ^ The API Version
   , kind       :: ResourceKind -- ^ The resource Kind
-  , metadata   :: Metadata -- ^ Resource metadata
-  , spec       :: s -- ^ The specification of the Resource
+  , metadata   :: Metadata     -- ^ Resource metadata
+  , spec       :: s            -- ^ The specification of the Resource
   } deriving (Eq, Generic, Show)
 
 -- | Parses the 'Manifest' from YAML/JSON
 --
 -- @since 0.1.0
-instance (FromJSON s) => FromJSON (Manifest s)
+instance FromJSON s => FromJSON (Manifest s)
 
 -- | Generates the YAML/JSON from an 'Manifest'
 --
 -- @since 0.1.0
-instance (ToJSON s) => ToJSON (Manifest s)
+instance ToJSON s => ToJSON (Manifest s)
 
 -- | Generic UUID retrieval class for Manifests
 --
 -- @since 0.1.0
 class IsManifest a where
   uuidString :: a -> String
+
+-- | Generic conversion to a list of Strings
+--
+-- @since 0.1.0
+class ToList a where
+  toList :: a -> [String]
+
+-- | For every Manifest the toList instance will be mapped to the spec
+--
+-- @since 0.1.0
+instance ToList s => ToList (Manifest s) where
+  toList = toList . spec
 
 -- | The implementation of the UUID retrieval
 --
@@ -72,11 +86,12 @@ instance ToJSON ApiVersion
 --
 -- @since 0.1.0
 data ResourceKind
-  = Config -- ^ References a 'Config'
-  | Action -- ^ References a 'Action'
+  = Config   -- ^ References a 'Config'
+  | Action   -- ^ References a 'Action'
   | Resource -- ^ References a 'Resource'
   | Schedule -- ^ References a 'Schedule'
   deriving (Eq, Generic, Show)
+
 
 -- | Parses the 'ResourceKind' from YAML/JSON
 --
@@ -93,7 +108,7 @@ instance ToJSON ResourceKind
 -- @since 0.1.0
 data Metadata = Metadata
   { creationTimestamp :: UTCTime -- ^ The creation time of the Metadata
-  , uid               :: UUID -- ^ The unique ID for this Metadata
+  , uid               :: UUID    -- ^ The unique ID for this Metadata
   } deriving (Eq, Generic, Show)
 
 -- | Parses the 'Metadata' from YAML/JSON
@@ -114,3 +129,4 @@ newMetadata = do
   time <- getCurrentTime
   uuid <- nextRandom
   return Metadata {creationTimestamp = time, uid = uuid}
+
