@@ -6,19 +6,35 @@
 
 module Seer.Manifest
   ( ApiVersion(..)
-  , IsManifest(..)
   , Manifest(..)
+  , MonadManifest
   , Metadata(..)
   , ResourceKind(..)
   , ToList(..)
   , newMetadata
   ) where
 
-import Data.Time.Clock (UTCTime, getCurrentTime)
-import Data.UUID       (UUID, toString)
+import Data.Time.Clock (UTCTime
+                       ,getCurrentTime)
+import Data.UUID       (UUID)
 import Data.UUID.V4    (nextRandom)
-import Data.Yaml       (FromJSON, ToJSON)
+import Data.Yaml       (FromJSON
+                       ,ToJSON)
 import GHC.Generics    (Generic)
+
+-- | A abstraction Monad to isolate real IO Actions
+--
+-- @since 0.1.0
+class Monad m => MonadManifest m where
+  getCurrentTime' :: m UTCTime
+  nextRandom' :: m UUID
+
+-- | The implementation of the isolation abstraction for the IO Monad
+--
+-- @since 0.1.0
+instance MonadManifest IO where
+  getCurrentTime' = getCurrentTime
+  nextRandom' = nextRandom
 
 -- | The data specified for a 'Manifest'
 --
@@ -40,29 +56,19 @@ instance FromJSON s => FromJSON (Manifest s)
 -- @since 0.1.0
 instance ToJSON s => ToJSON (Manifest s)
 
--- | Generic UUID retrieval class for Manifests
---
--- @since 0.1.0
-class IsManifest a where
-  uuidString :: a -> String
-
 -- | Generic conversion to a list of Strings
 --
 -- @since 0.1.0
 class ToList a where
+  headers :: a -> [String]
   toList :: a -> [String]
 
 -- | For every Manifest the toList instance will be mapped to the spec
 --
 -- @since 0.1.0
 instance ToList s => ToList (Manifest s) where
-  toList = toList . spec
-
--- | The implementation of the UUID retrieval
---
--- @since 0.1.0
-instance IsManifest (Manifest s) where
-  uuidString = toString . uid . metadata
+  headers l = headers $ spec l
+  toList l = toList $ spec l
 
 -- | The available API versions
 --
@@ -124,9 +130,8 @@ instance ToJSON Metadata
 -- | Generates a new 'Metadata' from the current UTC time and a random UUID
 --
 -- @since 0.1.0
-newMetadata :: IO Metadata
+newMetadata :: MonadManifest m => m Metadata
 newMetadata = do
-  time <- getCurrentTime
-  uuid <- nextRandom
+  time <- getCurrentTime'
+  uuid <- nextRandom'
   return Metadata {creationTimestamp = time, uid = uuid}
-

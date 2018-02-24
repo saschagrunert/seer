@@ -6,15 +6,32 @@
 module Seer.Config
   ( Config
   , ConfigSpec(..)
+  , MonadConfig
   , new
   , toList
   ) where
 
 import Data.Yaml     (FromJSON, ToJSON)
 import GHC.Generics  (Generic)
-import Seer.Manifest (ApiVersion (V1), Manifest (Manifest),
-                      ResourceKind (Config), ToList (toList),
-                      newMetadata)
+import Seer.Manifest (ApiVersion (V1)
+                     ,Manifest (Manifest)
+                     ,Metadata
+                     ,ResourceKind (Config)
+                     ,ToList (headers
+                             ,toList)
+                     ,newMetadata)
+
+-- | A abstraction Monad to isolate real IO Actions
+--
+-- @since 0.1.0
+class Monad m => MonadConfig m where
+  newMetadata' :: m Metadata
+
+-- | The implementation of the isolation abstraction for the IO Monad
+--
+-- @since 0.1.0
+instance MonadConfig IO where
+  newMetadata' = newMetadata
 
 -- | A synonym for the Config
 --
@@ -42,12 +59,14 @@ instance ToJSON ConfigSpec
 --
 -- @since 0.1.0
 instance ToList ConfigSpec where
+  headers _ = ["STORAGE"]
   toList x = pure $ storage x
 
 -- | Create a new default configuration
 --
 -- @since 0.1.0
 new
-  :: String    -- ^ The name of the storage
-  -> IO Config -- ^ The result
-new n = (\m -> Manifest V1 Config m $ ConfigSpec n) <$> newMetadata
+  :: MonadConfig m
+  => String    -- ^ The name of the storage
+  -> m Config  -- ^ The result
+new n = (\m -> Manifest V1 Config m $ ConfigSpec n) <$> newMetadata'

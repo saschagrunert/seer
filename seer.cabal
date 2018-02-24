@@ -1,8 +1,8 @@
--- This file has been generated from package.yaml by hpack version 0.21.2.
+-- This file has been generated from package.yaml by hpack version 0.27.0.
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 2f21b3cd88fdf13f3906b25a0946e48dbe8cfbb3439f6cc2f6caa0e0fdc2a258
+-- hash: 44a84c7c24889a55d2f7b517aedd05901d64f17b3b1fdf236bd6da0ca1a4c8a9
 
 name:           seer
 version:        0.1.0
@@ -46,13 +46,14 @@ library
   exposed-modules:
       Seer
       Seer.Action
-      Seer.Availability
       Seer.Config
       Seer.Git
       Seer.Manifest
       Seer.Resource
       Seer.Schedule
       Seer.Storage
+      Seer.Time
+      Seer.Utils
   other-modules:
       Paths_seer
   default-language: Haskell2010
@@ -92,7 +93,6 @@ test-suite seer-test
     , yaml
   other-modules:
       ActionSpec
-      AvailabilitySpec
       ConfigSpec
       GitSpec
       ManifestSpec
@@ -101,5 +101,7 @@ test-suite seer-test
       SeerSpec
       StorageSpec
       TestData
+      TimeSpec
+      UtilsSpec
       Paths_seer
   default-language: Haskell2010

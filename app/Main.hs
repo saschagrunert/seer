@@ -6,18 +6,45 @@ module Main
   ( main
   ) where
 
-import Cli                 (Args (Args), BasicCommand (Get),
-                            EntityCommand (Action, Config,
-                            Resource, Schedule, Storage), parser)
-import Options.Applicative (ParserPrefs (ParserPrefs, prefBacktrack,
-                            prefColumns, prefDisambiguate,
-                            prefMultiSuffix, prefShowHelpOnEmpty,
-                            prefShowHelpOnError), customExecParser)
-import Seer                (getActions, getConfig, getResources,
-                            getSchedules, getStorages)
-import System.Console.ANSI (ConsoleLayer (Foreground), Color (Red),
-                            ColorIntensity (Vivid),
-                            SGR (Reset, SetColor), setSGR)
+import Cli                 (Args (Args)
+                           ,BasicCommand (Config
+                                         ,Create
+                                         ,Get)
+                           ,ConfigCommand (GetConfig
+                                          ,SetStorage)
+                           ,CreateCommand (Action
+                                          ,Resource
+                                          ,Schedule
+                                          ,Storage)
+                           ,GetCommand (Actions
+                                       ,Resources
+                                       ,Schedules
+                                       ,Storages)
+                           ,parser)
+import Options.Applicative (ParserPrefs (ParserPrefs
+                                        ,prefBacktrack
+                                        ,prefColumns
+                                        ,prefDisambiguate
+                                        ,prefMultiSuffix
+                                        ,prefShowHelpOnEmpty
+                                        ,prefShowHelpOnError)
+                           ,customExecParser)
+import Seer                (createAction
+                           ,createResource
+                           ,createSchedule
+                           ,createStorage
+                           ,getActions
+                           ,getConfig
+                           ,getResources
+                           ,getSchedules
+                           ,getStorages
+                           ,setDefaultStorage)
+import System.Console.ANSI (ConsoleLayer (Foreground)
+                           ,Color (Red)
+                           ,ColorIntensity (Vivid)
+                           ,SGR (Reset
+                                ,SetColor)
+                           ,setSGR)
 import System.Exit         (exitFailure)
 
 -- | The application entry point
@@ -39,12 +66,17 @@ main = customExecParser p parser >>= run
 --
 -- @since 0.1.0
 run :: Args -> IO ()
-run (Args (Get Config  )) = call getConfig
-run (Args (Get Storage )) = call getStorages
-run (Args (Get Action  )) = call getActions
-run (Args (Get Schedule)) = call getSchedules
-run (Args (Get Resource)) = call getResources
-run _                     = exitError "Unkown argument"
+run (Args (Config (SetStorage n))) = call $ setDefaultStorage n
+run (Args (Config GetConfig     )) = call getConfig
+run (Args (Create (Action n r d))) = call $ createAction n d r
+run (Args (Create (Resource n d m t w h f s u))) =
+  call $ createResource n d (m, t, w, h, f, s, u)
+run (Args (Create (Schedule f r a))) = call $ createSchedule f r a
+run (Args (Create (Storage n r   ))) = call $ createStorage n r
+run (Args (Get    Actions         )) = call getActions
+run (Args (Get    Resources       )) = call getResources
+run (Args (Get    Schedules       )) = call getSchedules
+run (Args (Get    Storages        )) = call getStorages
 
 -- | Call a function and print the result.
 --
@@ -58,6 +90,6 @@ call f = f >>= either exitError putStrLn
 exitError :: String -> IO ()
 exitError e =
   setSGR [SetColor Foreground Vivid Red]
-    >> putStrLn ("Error: " ++ e)
+    >> putStrLn ("✗ " ++ e)
     >> setSGR [Reset]
     >> exitFailure

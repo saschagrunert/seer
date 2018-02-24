@@ -1,19 +1,64 @@
-module AvailabilitySpec
-  ( availabilityProps
-  , availabilitySpec
+{-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE KindSignatures        #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE QuasiQuotes           #-}
+{-# LANGUAGE RankNTypes            #-}
+{-# LANGUAGE ScopedTypeVariables   #-}
+{-# LANGUAGE TemplateHaskell       #-}
+
+module TimeSpec
+  ( timeProps
+  , timeSpec
   ) where
 
-import Data.ByteString.Char8 (pack)
-import Data.Maybe            (isJust)
-import Data.Yaml             (decode, encode)
-import Seer.Availability     (WeekDay (..), dayAvailable, dayAvailableFromTo,
-                              dayNotAvailable, dayNotAvailableFromTo,
-                              dayReserveTime, toList, weekAvailable,
-                              weekAvailableFromTo, weekNotAvailable,
-                              weekNotAvailableFromTo, weekReserveTime)
-import Test.Tasty            (TestTree, testGroup)
-import Test.Tasty.Hspec      (Spec, it, parallel, shouldBe)
-import Test.Tasty.QuickCheck (Arbitrary (..), elements, testProperty, (==>))
+import Control.Monad.TestFixture    (TestFixture
+                                    ,unTestFixture)
+import Control.Monad.TestFixture.TH (def
+                                    ,mkFixture
+                                    ,ts)
+import Data.ByteString.Char8        (pack)
+import Data.Maybe                   (fromJust
+                                    ,isJust)
+import Data.Time.Calendar           (fromGregorian)
+import Data.Time.Clock              (UTCTime(UTCTime))
+import Data.Time.LocalTime          (minutesToTimeZone)
+import Data.Yaml                    (decode
+                                    ,encode)
+import Seer.Time                    (Duration(Duration)
+                                    ,MonadTime
+                                    ,WeekDay (..)
+                                    ,dayAvailable
+                                    ,dayAvailableFromTo
+                                    ,dayNotAvailable
+                                    ,dayNotAvailableFromTo
+                                    ,dayReserveTime
+                                    ,dateTimeFormat
+                                    ,evaluateEnd
+                                    ,evaluateStart
+                                    ,parseDateTime
+                                    ,toList
+                                    ,utcToLocal
+                                    ,weekAvailable
+                                    ,weekAvailableFromTo
+                                    ,weekNotAvailable
+                                    ,weekNotAvailableFromTo
+                                    ,weekReserveTime)
+import Test.Tasty                   (TestTree
+                                    ,testGroup)
+import Test.Tasty.Hspec             (Spec
+                                    ,it
+                                    ,parallel
+                                    ,shouldBe)
+import Test.Tasty.QuickCheck        (Arbitrary (..)
+                                    ,elements
+                                    ,testProperty
+                                    ,(==>))
+import TestData                     (testTime)
+
+mkFixture "Fixture" [ts| MonadTime |]
+
+fixture :: Fixture (TestFixture Fixture () ())
+fixture = def { _getCurrentTimeZone' = return $ minutesToTimeZone 0 }
 
 -- Property generators
 newtype TimeSpanString = TimeSpanString
@@ -38,10 +83,9 @@ instance Arbitrary TimeSpanString where
     m4 <- elements ['0' .. '9']
     let t1 = [h1, h2, ':', m1, m2]
     let t2 = [h3, h4, ':', m3, m4]
-    let tr =
-          if t1 <= t2
-            then t1 ++ "-" ++ t2
-            else t2 ++ "-" ++ t1
+    let tr | t1 == t2 = "00:00-" ++ t1
+           | t1 < t2 = t1 ++ "-" ++ t2
+           | otherwise = t2 ++ "-" ++ t1
     return $ TimeSpanString tr
 
 newtype WeekDayRnd = WeekDayRnd
@@ -52,8 +96,8 @@ instance Arbitrary WeekDayRnd where
   arbitrary = WeekDayRnd <$> elements [Mon .. Sun]
 
 -- Property tests
-availabilityProps :: TestTree
-availabilityProps = testGroup
+timeProps :: TestTree
+timeProps = testGroup
   "Availability.hs"
     -- 'dayAvailableFromTo /=' test
   [ testProperty "dayAvailableFromTo /=" $ \t1 t2 ->
@@ -103,19 +147,21 @@ availabilityProps = testGroup
 
 -- Availability.hs related tests
 -- Unit tests
-availabilitySpec :: Spec
-availabilitySpec = parallel $ do
+timeSpec :: Spec
+timeSpec = parallel $ do
+
+
   it "should succeed to set daily availability"
     $          return dayAvailable
-    `shouldBe` dayAvailableFromTo ["00:00-23:59"]
+    `shouldBe` dayAvailableFromTo ["0-0"]
 
   it "should succeed to create daily non availability"
     $          return dayNotAvailable
-    `shouldBe` dayNotAvailableFromTo ["00:00-23:59"]
+    `shouldBe` dayNotAvailableFromTo ["00:00-00:00"]
 
   it "should succeed to compare daily availability"
     $          dayAvailableFromTo ["12:30-13:30"]
-    `shouldBe` dayNotAvailableFromTo ["00:00-12:29", "13:31-23:59"]
+    `shouldBe` dayNotAvailableFromTo ["00:00-12:30", "13:30-00:00"]
 
   it "should fail to reserve time in daily non availability"
     $          dayReserveTime "05:30-06:30" dayNotAvailable
@@ -127,8 +173,8 @@ availabilitySpec = parallel $ do
 
   it "should succeed to multiple reserve daily time"
     $          (   dayAvailableFromTo ["15:55-17:45"]
-               >>= dayReserveTime "15:55-16:23"
-               >>= dayReserveTime "16:24-17:45"
+               >>= dayReserveTime "15:55-16:25"
+               >>= dayReserveTime "16:25-17:45"
                )
     `shouldBe` Just dayNotAvailable
 
@@ -148,11 +194,11 @@ availabilitySpec = parallel $ do
     `shouldBe` Nothing
 
   it "should fail to create daily availability with wrong time"
-    $          dayAvailableFromTo ["2:12-09:09"]
+    $          dayAvailableFromTo ["09:09"]
     `shouldBe` Nothing
 
   it "should succeed to encode daily availability as YAML"
-    $          encode (dayAvailableFromTo ["02:12-09:09"])
+    $          encode (dayAvailableFromTo ["02:12-09:10"])
     `shouldBe` pack "- - 02:12:00\n  - 09:09:00\n"
 
   it "should succeed to encode non daily availability YAML"
@@ -164,7 +210,7 @@ availabilitySpec = parallel $ do
     `shouldBe` pack "- - 00:00:00\n  - 23:59:00\n"
 
   it "should succeed to decode daily availability as YAML"
-    $          dayAvailableFromTo ["02:12-09:09"]
+    $          dayAvailableFromTo ["02:12-09:10"]
     `shouldBe` decode (pack "- - 02:12:00\n  - 09:09:00\n")
 
   it "should succeed to decode non daily availability YAML"
@@ -178,37 +224,37 @@ availabilitySpec = parallel $ do
   it "should succeed to set weekly availability"
     $          return weekAvailable
     `shouldBe` weekAvailableFromTo
-                 [ (Mon, "00:00-23:59")
-                 , (Tue, "00:00-23:59")
-                 , (Wed, "00:00-23:59")
-                 , (Thu, "00:00-23:59")
-                 , (Fri, "00:00-23:59")
-                 , (Sat, "00:00-23:59")
-                 , (Sun, "00:00-23:59")
+                 [ (Mon, "00:00-00:00")
+                 , (Tue, "00:00-00:00")
+                 , (Wed, "00:00-00:00")
+                 , (Thu, "00:00-00:00")
+                 , (Fri, "00:00-00:00")
+                 , (Sat, "00:00-00:00")
+                 , (Sun, "00:00-00:00")
                  ]
 
   it "should succeed to create weekly non availability"
     $          return weekNotAvailable
     `shouldBe` weekNotAvailableFromTo
-                 [ (Mon, "00:00-23:59")
-                 , (Tue, "00:00-23:59")
+                 [ (Mon, "00:00-00:00")
+                 , (Tue, "00:00-00:00")
                  , (Wed, "00:00-12:50")
-                 , (Wed, "12:51-23:59")
-                 , (Thu, "00:00-23:59")
-                 , (Fri, "00:00-23:59")
-                 , (Sat, "00:00-23:59")
-                 , (Sun, "00:00-23:59")
+                 , (Wed, "12:50-00:00")
+                 , (Thu, "00:00-00:00")
+                 , (Fri, "00:00-00:00")
+                 , (Sat, "00:00-00:00")
+                 , (Sun, "00:00-00:00")
                  ]
 
   it "should succeed to create a list from weekly availability"
     $          toList weekAvailable
-    `shouldBe` [ "00:00-23:59"
-               , "00:00-23:59"
-               , "00:00-23:59"
-               , "00:00-23:59"
-               , "00:00-23:59"
-               , "00:00-23:59"
-               , "00:00-23:59"
+    `shouldBe` [ "0:00-0:00"
+               , "0:00-0:00"
+               , "0:00-0:00"
+               , "0:00-0:00"
+               , "0:00-0:00"
+               , "0:00-0:00"
+               , "0:00-0:00"
                ]
 
   it "should succeed to create a list from weekly non availability"
@@ -218,14 +264,14 @@ availabilitySpec = parallel $ do
   it "should succeed to create compare weekly availability"
     $          weekAvailableFromTo [(Wed, "11:30-13:30")]
     `shouldBe` weekNotAvailableFromTo
-                 [ (Mon, "00:00-23:59")
-                 , (Tue, "00:00-23:59")
-                 , (Wed, "00:00-11:29")
-                 , (Wed, "13:31-23:59")
-                 , (Thu, "00:00-23:59")
-                 , (Fri, "00:00-23:59")
-                 , (Sat, "00:00-23:59")
-                 , (Sun, "00:00-23:59")
+                 [ (Mon, "00:00-00:00")
+                 , (Tue, "00:00-00:00")
+                 , (Wed, "00:00-11:30")
+                 , (Wed, "13:30-00:00")
+                 , (Thu, "00:00-00:00")
+                 , (Fri, "00:00-00:00")
+                 , (Sat, "00:00-00:00")
+                 , (Sun, "00:00-00:00")
                  ]
 
   it "should fail to reserve time in weekly non availability"
@@ -263,11 +309,11 @@ availabilitySpec = parallel $ do
     `shouldBe` Nothing
 
   it "should fail to create weekly availability with wrong time"
-    $          weekAvailableFromTo [(Fri, "2:12-09:09")]
+    $          weekAvailableFromTo [(Fri, "09:09")]
     `shouldBe` Nothing
 
   it "should succeed to encode weekly availability as YAML"
-    $          encode (weekAvailableFromTo [(Thu, "02:12-09:09")])
+    $          encode (weekAvailableFromTo [(Thu, "02:12-09:10")])
     `shouldBe` pack
                  "- - Mon\n\
                         \  - []\n\
@@ -328,7 +374,7 @@ availabilitySpec = parallel $ do
                         \      - 23:59:00\n"
 
   it "should succeed to decode weekly availability as YAML"
-    $          weekAvailableFromTo [(Thu, "02:12-09:09")]
+    $          weekAvailableFromTo [(Thu, "02:12-09:10")]
     `shouldBe` decode
                  ( pack
                    "- - Mon\n\
@@ -394,3 +440,131 @@ availabilitySpec = parallel $ do
                         \  - - - 00:00:00\n\
                         \      - 23:59:00\n"
                  )
+
+  it "should succeed format time"
+    $          dateTimeFormat testTime
+    `shouldBe` "0-01-01  0:00"
+
+  it "should succeed convert to local time" $ do
+    let result = unTestFixture (utcToLocal testTime) fixture
+    result `shouldBe` "0-01-01  0:00"
+
+  it "should succeed convert to local time with day offset" $ do
+    let ff =
+          def { _getCurrentTimeZone' = return $ minutesToTimeZone (60 * 24) }
+    let result = unTestFixture (utcToLocal testTime) ff
+    result `shouldBe` "0-01-02  0:00"
+
+  it "should succeed parse a valid time"
+    $          parseDateTime "0-1-1 00:00"
+    `shouldBe` Just testTime
+
+  it "should fail parse an invalid time"
+    $          parseDateTime "test"
+    `shouldBe` Nothing
+
+  it "should succeed to evaluate end time just fitting"
+    $          show
+                 ( evaluateEnd (UTCTime (fromGregorian 0 0 0) 0)
+                               (fromJust $ weekAvailableFromTo [(Mon, "1-2")])
+                               (Duration 60)
+                 )
+    `shouldBe` "Just 0000-01-03 02:00:00 UTC"
+
+  it "should succeed to evaluate end time just fitting differnt time"
+    $          show
+                 ( evaluateEnd (UTCTime (fromGregorian 0 0 0) 0)
+                               (fromJust $ weekAvailableFromTo [(Fri, "13:38-13:56")])
+                               (Duration 18)
+                 )
+    `shouldBe` "Just 0000-01-07 13:56:00 UTC"
+
+  it "should succeed to evaluate end time not fitting to next week"
+    $          show
+                 ( evaluateEnd (UTCTime (fromGregorian 0 0 0) 0)
+                               (fromJust $ weekAvailableFromTo [(Mon, "1-2")])
+                               (Duration 70)
+                 )
+    `shouldBe` "Just 0000-01-10 01:10:00 UTC"
+
+  it "should succeed to evaluate end time not fitting to next day"
+    $          show
+                 ( evaluateEnd
+                   (UTCTime (fromGregorian 0 0 0) 0)
+                   (fromJust $ weekAvailableFromTo [(Mon, "1-2"), (Tue, "2-3")])
+                   (Duration 70)
+                 )
+    `shouldBe` "Just 0000-01-04 02:10:00 UTC"
+
+  it "should succeed to evaluate end time not fitting to next year"
+    $          show
+                 ( evaluateEnd (UTCTime (fromGregorian 2010 12 30) 0)
+                               (fromJust $ weekAvailableFromTo [(Mon, "1-2")])
+                               (Duration 70)
+                 )
+    `shouldBe` "Just 2011-01-10 01:10:00 UTC"
+
+  it "should succeed to evaluate end time not fitting short timespan"
+    $          show
+                 ( evaluateEnd (UTCTime (fromGregorian 0 0 0) 0)
+                               (fromJust $ weekAvailableFromTo [(Fri, "10:10-10:15")])
+                               (Duration 222)
+                 )
+    `shouldBe` "Just 0000-11-10 10:12:00 UTC"
+
+  it "should succeed to evaluate end time just fitting with offset"
+    $          show
+                 ( evaluateEnd (UTCTime (fromGregorian 0 0 3) 5400)
+                               (fromJust $ weekAvailableFromTo [(Mon, "1-2")])
+                               (Duration 30)
+                 )
+    `shouldBe` "Just 0000-01-03 02:00:00 UTC"
+
+  it "should succeed to evaluate end time not fitting to next day with offset"
+    $          show
+                 ( evaluateEnd
+                   (UTCTime (fromGregorian 0 0 3) 5400)
+                   (fromJust $ weekAvailableFromTo [(Mon, "1-2"), (Tue, "4-5")])
+                   (Duration 60)
+                 )
+    `shouldBe` "Just 0000-01-04 04:30:00 UTC"
+
+  it "should succeed to evaluate end time with too large offset"
+    $          show
+                 ( evaluateEnd
+                   (UTCTime (fromGregorian 0 0 3) 86400)
+                   (fromJust $ weekAvailableFromTo [(Mon, "0-0"), (Tue, "1-2")])
+                   (Duration 10)
+                 )
+    `shouldBe` "Just 0000-01-04 01:10:00 UTC"
+
+  it "should fail to evaluate end time with no availability"
+    $          evaluateEnd (UTCTime (fromGregorian 0 0 0) 0)
+                           weekNotAvailable
+                           (Duration 0)
+    `shouldBe` Nothing
+
+  it "should succeed to evaluate start time"
+    $          show
+                 ( evaluateStart (UTCTime (fromGregorian 0 0 0) 0)
+                                 (fromJust $ weekAvailableFromTo [(Mon, "1-2")])
+                 )
+    `shouldBe` "Just 0000-01-03 01:00:00 UTC"
+
+  it "should succeed to evaluate start time with offset same day"
+    $          show
+                 ( evaluateStart (UTCTime (fromGregorian 0 0 3) 5400)
+                                 (fromJust $ weekAvailableFromTo [(Mon, "1-2")])
+                 )
+    `shouldBe` "Just 0000-01-03 01:30:00 UTC"
+
+  it "should succeed to evaluate start time with offset other day"
+    $          show
+                 ( evaluateStart (UTCTime (fromGregorian 0 0 0) 5400)
+                                 (fromJust $ weekAvailableFromTo [(Mon, "1-2")])
+                 )
+    `shouldBe` "Just 0000-01-03 01:00:00 UTC"
+
+  it "should fail to evaluate start time with no availability"
+    $ evaluateStart (UTCTime (fromGregorian 0 0 0) 5400) weekNotAvailable
+    `shouldBe` Nothing

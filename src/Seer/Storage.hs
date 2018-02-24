@@ -21,26 +21,42 @@ module Seer.Storage (
 ) where
 
 import Control.Exception     (try)
-import Control.Monad         (foldM, mapM, (>=>))
+import Control.Monad         (foldM
+                             ,mapM
+                             ,(>=>))
 import Data.Bifunctor        (first)
-import Data.Char             (isSpace)
-import Data.List             (sort, zipWith)
+import Data.List             (sort
+                             ,zipWith)
 import Data.Maybe            (maybe)
-import Data.Yaml             (FromJSON, ParseException, ToJSON,
-                              decodeFileEither, encodeFile,
-                              prettyPrintParseException)
+import Data.UUID             (toString)
+import Data.Yaml             (FromJSON
+                             ,ParseException
+                             ,ToJSON
+                             ,decodeFileEither
+                             ,encodeFile
+                             ,prettyPrintParseException)
 import Seer.Action           (Action)
 import Seer.Config           (Config)
-import Seer.Git              (runGitCommand, runGitCommandIO)
-import Seer.Manifest         (IsManifest (uuidString))
+import Seer.Git              (runGitCommand
+                             ,runGitCommandIO)
+import Seer.Manifest         (Manifest
+                             ,metadata
+                             ,uid)
 import Seer.Resource         (Resource)
 import Seer.Schedule         (Schedule)
-import System.Directory      (createDirectory, createDirectoryIfMissing,
-                              doesDirectoryExist, getHomeDirectory,
-                              listDirectory, removeDirectoryRecursive)
-import System.FilePath.Glob  (compile, globDir1)
-import System.FilePath.Posix ((<.>), (</>))
-import System.IO.Error       (IOError, userError)
+import Seer.Utils            (rstrip)
+import System.Directory      (createDirectory
+                             ,createDirectoryIfMissing
+                             ,doesDirectoryExist
+                             ,getHomeDirectory
+                             ,listDirectory
+                             ,removeDirectoryRecursive)
+import System.FilePath.Glob  (compile
+                             ,globDir1)
+import System.FilePath.Posix ((<.>)
+                             ,(</>))
+import System.IO.Error       (IOError
+                             ,userError)
 
 -- | A reference to a Storage
 --
@@ -93,13 +109,13 @@ instance MonadStorage IO where
   -> f1 (f2 FilePath) -- ^ The resulting FilePath
 a <//> b = fmap (</> b) <$> a
 
-seerDir :: MonadStorage m => m (Either IOError FilePath) -- ^ The result
+seerDir :: MonadStorage m => m (Either IOError FilePath)
 seerDir = tryGetHomeDirectory' <//> ".seer"
 
 -- | The global storage cache directory
 --
 -- @since 0.1.0
-cacheDir :: MonadStorage m => m (Either IOError FilePath) -- ^ The result
+cacheDir :: MonadStorage m => m (Either IOError FilePath)
 cacheDir = seerDir <//> "cache"
 
 -- |  The storage directory
@@ -141,7 +157,7 @@ schedulesDir n = storageDir n <//> "schedules"
 -- | The file where the configuration is stored
 --
 -- @since 0.1.0
-configPath :: MonadStorage m => m (Either IOError FilePath) -- ^ The result
+configPath :: MonadStorage m => m (Either IOError FilePath)
 configPath = seerDir <//> ("config" <.> yamlExt)
 
 -- | The standard .keep file for empty git repository folders
@@ -214,14 +230,14 @@ createKeepFiles n = foldM
 -- | Create the global cache directory for all storages
 --
 -- @since 0.1.0
-createCacheDir :: (MonadStorage m) => m (Either IOError ()) -- ^ The result
+createCacheDir :: (MonadStorage m) => m (Either IOError ())
 createCacheDir = cacheDir >>- tryCreateDirectoryIfMissing'
 
 -- | Lists all currently available storage instances including their remote
 -- location
 --
 -- @since 0.1.0
-list :: (MonadStorage m) => m (Either IOError [[String]]) -- ^ The result
+list :: (MonadStorage m) => m (Either IOError [[String]])
 list = listStorages >>- (\d -> (Right . zipWith f d) <$> mapM remote d)
   where f a b = [a, b]
 
@@ -237,7 +253,7 @@ storageExist n = listStorages >>- (\s -> return . Right $ n `elem` s)
 -- | Lists all currently available storage instances
 --
 -- @since 0.1.0
-listStorages :: (MonadStorage m) => m (Either IOError [FilePath]) -- ^ The result
+listStorages :: (MonadStorage m) => m (Either IOError [FilePath])
 listStorages = cacheDir >>- tryListDirectory'
 
 -- | Returns a remote for a given Storage
@@ -251,14 +267,6 @@ remote n = storageDir n >>= either
   e
   (runGitCommand' "remote get-url origin" >=> either e (return . rstrip))
   where e _ = return ""
-
--- | Drops all trailing whitespace from a String
---
--- @since 0.1.0
-rstrip
-  :: String -- ^ The String to be stripped
-  -> String -- ^ The result
-rstrip = reverse . dropWhile isSpace . reverse
 
 -- | Create a new storage for the given name and optional remote location. This
 -- means in general it will:
@@ -286,15 +294,13 @@ new
   -> Maybe String          -- ^ The remote URL of the storage
   -> m (Either IOError ()) -- ^ The result
 new n r =
-  (   createCacheDir
+  createCacheDir
     >>> createStorageDirs n
     >>> createKeepFiles n
     >>> g ["init", "add .", "commit -m Init"]
     >>> maybe (return $ Right ())
               (\x -> g ["remote add origin " ++ x, "push -u origin master"])
               r
-    )
-    >>= either (\l -> remove n >> return (Left l)) (return . Right)
   where g c = runGit c n
 
 
@@ -392,28 +398,30 @@ loadSchedules = loadEntities . schedulesDir
 -- | Load the Config from the configuration directory.
 --
 -- @since 0.1.0
-loadConfig :: MonadStorage m => m (Either IOError Config) -- ^ The result
+loadConfig :: MonadStorage m => m (Either IOError Config)
 loadConfig = configPath >>- loadFile
 
 -- | Save the given list of 'ToJSON a' to the 'FilePath'
 --
 -- @since 0.1.0
 saveFiles
-  :: (IsManifest a, ToJSON a, MonadStorage m)
-  => [a]                   -- ^ The instances to be stored
+  :: (ToJSON a, MonadStorage m)
+  => [Manifest a]          -- ^ The instances to be stored
   -> FilePath              -- ^ The location of the saved files
   -> m (Either IOError ()) -- ^ The result
-saveFiles a p =
-  foldM (\_ v -> tryEncodeFile' (p </> uuidString v <.> yamlExt) v) (Right ()) a
+saveFiles a p = foldM
+  (\_ v -> tryEncodeFile' (p </> (toString . uid $ metadata v) <.> yamlExt) v)
+  (Right ())
+  a
 
 -- | Save certain entities from a list into a directory
 --
 -- @since 0.1.0
 saveEntities
-  :: (IsManifest a, MonadStorage m, ToJSON a)
+  :: (MonadStorage m, ToJSON a)
   => (t -> m (Either IOError FilePath))   -- ^ The target directory
   -> t                                    -- ^ The name of the storage
-  -> [a]                                  -- ^ The entities to be stored
+  -> [Manifest a]                         -- ^ The entities to be stored
   -> m (Either IOError ())                -- ^ The result
 saveEntities f n a = f n >>- saveFiles a
 
