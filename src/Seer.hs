@@ -447,6 +447,8 @@ createResource
   -> String                                                   -- ^ The description, can be empty
   -> (String, String, String, String, String, String, String) -- ^ The time span Strings
   -> m (Either Error String)                                  -- ^ The result
+createResource _ _ ("", "", "", "", "", "", "") =
+  return $ Left "A resource without any availability can't do anything."
 createResource n d a =
   maybeError "Unable to parse time spans"
              (newResource' n (maybeString d) >=> saveAndSync saveResources')

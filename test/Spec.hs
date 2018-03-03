@@ -16,7 +16,8 @@ import ResourceSpec          (resourceProps
                              ,resourceSpec)
 import ScheduleSpec          (scheduleSpec)
 import SeerSpec              (seerSpec)
-import StorageSpec           (storageSpec)
+import StorageSpec           (storageSpec
+                             ,storageModuleSpec)
 import Test.Tasty            (TestTree
                              ,defaultMain
                              ,localOption
@@ -31,23 +32,24 @@ import UtilsSpec             (utilsProps
 -- The main test routine
 main :: IO ()
 main = do
-  units <- unitTests
-  defaultMain . opts $ testGroup "Tests" [units, properties]
+  uTests <- unitTests
+  mTests <- moduleTests
+  defaultMain . opts $ testGroup "Tests" [uTests, properties, mTests]
   where opts = localOption $ QuickCheckTests 5000
 
 -- Unit tests based on hspec
 unitTests :: IO TestTree
 unitTests = do
-  actionUnitTests   <- testSpec "ActionSpec.hs" actionSpec
-  configUnitTests   <- testSpec "ConfigSpec.hs" configSpec
-  gitUnitTests      <- testSpec "GitSpec.hs" gitSpec
-  manifestUnitTests <- testSpec "ManifestSpec.hs" manifestSpec
-  resourceUnitTests <- testSpec "ResourceSpec.hs" resourceSpec
-  scheduleUnitTests <- testSpec "ScheduleSpec.hs" scheduleSpec
-  seerUnitTests     <- testSpec "SeerSpec.hs" seerSpec
-  storageUnitTests  <- testSpec "StorageSpec.hs" storageSpec
-  timeUnitTests     <- testSpec "TimeSpec.hs" timeSpec
-  utilsUnitTests    <- testSpec "UtilsSpec.hs" utilsSpec
+  actionUnitTests   <- testSpec "Action" actionSpec
+  configUnitTests   <- testSpec "Config" configSpec
+  gitUnitTests      <- testSpec "Git" gitSpec
+  manifestUnitTests <- testSpec "Manifest" manifestSpec
+  resourceUnitTests <- testSpec "Resource" resourceSpec
+  scheduleUnitTests <- testSpec "Schedule" scheduleSpec
+  seerUnitTests     <- testSpec "Seer" seerSpec
+  storageUnitTests  <- testSpec "Storage" storageSpec
+  timeUnitTests     <- testSpec "Time" timeSpec
+  utilsUnitTests    <- testSpec "Utils" utilsSpec
   return $ testGroup
     "Unit Tests"
     [ actionUnitTests
@@ -61,6 +63,11 @@ unitTests = do
     , storageUnitTests
     , utilsUnitTests
     ]
+
+moduleTests :: IO TestTree
+moduleTests = do
+  storageModuleTests <- testSpec "Storage" storageModuleSpec
+  return $ testGroup "Module Tests" [storageModuleTests]
 
 -- Property tests based on quickcheck and smallcheck
 properties :: TestTree

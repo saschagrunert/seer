@@ -12,6 +12,7 @@
 
 module StorageSpec
   ( storageSpec
+  , storageModuleSpec
   ) where
 
 import Control.Monad.TestFixture    (TestFixture
@@ -352,28 +353,6 @@ storageSpec = parallel $ do
     let result = unTestFixture (loadSchedules "name") ff
     result `shouldBe` testError
 
-  it "should succeed to save and load all entities (without Mock)" $ do
-    let t = "unittest"
-    a <- new t Nothing
-    b <- saveActions t [testAction]
-    c <- saveResources t [testResource]
-    d <- saveSchedules t [testSchedule]
-    e <- loadActions t
-    f <- loadResources t
-    g <- loadSchedules t
-    h <- saveConfig testConfig
-    i <- loadConfig
-    _ <- remove t
-    a `shouldBe` Right ()
-    b `shouldBe` Right ()
-    c `shouldBe` Right ()
-    d `shouldBe` Right ()
-    e `shouldBe` Right [testAction]
-    f `shouldBe` Right [testResource]
-    g `shouldBe` Right [testSchedule]
-    h `shouldBe` Right ()
-    i `shouldBe` Right testConfig
-
   it "should succeed to remove an Action" $ do
     let result = unTestFixture (removeActions "" [testAction]) fixture
     isRight result `shouldBe` True
@@ -415,3 +394,28 @@ storageSpec = parallel $ do
     let ff = def { _tryGetHomeDirectory' = rRSlash, _tryRemoveFile' = crError }
     let result = unTestFixture (removeSchedules "" [testSchedule]) ff
     result `shouldBe` testError
+
+-- Module tests
+storageModuleSpec :: Spec
+storageModuleSpec =
+  parallel $ it "should succeed to save and load all entities" $ do
+    let t = "unittest"
+    a <- new t Nothing
+    b <- saveActions t [testAction]
+    c <- saveResources t [testResource]
+    d <- saveSchedules t [testSchedule]
+    e <- loadActions t
+    f <- loadResources t
+    g <- loadSchedules t
+    h <- saveConfig testConfig
+    i <- loadConfig
+    _ <- remove t
+    a `shouldBe` Right ()
+    b `shouldBe` Right ()
+    c `shouldBe` Right ()
+    d `shouldBe` Right ()
+    e `shouldBe` Right [testAction]
+    f `shouldBe` Right [testResource]
+    g `shouldBe` Right [testSchedule]
+    h `shouldBe` Right ()
+    i `shouldBe` Right testConfig

@@ -295,9 +295,15 @@ seerSpec = parallel $ do
 
   it "should succeed to create a Resource" $ do
     let result = unTestFixture
-          (createResource "" "" ("", "", "", "", "", "", ""))
+          (createResource "" "" ("", "10-12", "", "", "", "", ""))
           fixture
     isRight result `shouldBe` True
+
+  it "should fail to create a Resource for non availability" $ do
+    let result = unTestFixture
+          (createResource "" "" ("", "", "", "", "", "", ""))
+          fixture
+    isLeft result `shouldBe` True
 
   it "should fail to create a Resource if entity saving fails" $ do
     let ff = def { _loadConfig'    = return $ Right testConfig
