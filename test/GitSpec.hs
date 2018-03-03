@@ -1,3 +1,7 @@
+-- | The Git tests
+--
+-- @since 0.1.0
+
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE KindSignatures        #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -10,7 +14,8 @@ module GitSpec
   ( gitSpec
   ) where
 
-import Control.Monad.TestFixture    (unTestFixture)
+import Control.Monad.TestFixture    (TestFixture
+                                    ,unTestFixture)
 import Control.Monad.TestFixture.TH (def
                                     ,mkFixture
                                     ,ts)
@@ -30,6 +35,9 @@ import Test.Tasty.Hspec             (Spec
 
 mkFixture "Fixture" [ts| MonadGit |]
 
+cccR :: a -> b -> c -> d -> TestFixture Fixture () () a
+cccR = const . const . const . return
+
 -- Git.hs related tests
 -- Unit tests
 gitSpec :: Spec
@@ -46,8 +54,7 @@ gitSpec = parallel $ do
 
   it "should succeed with a mocked 'git status' command (runGitCommand)" $ do
     let fixture = def
-          { _readProcessWithExitCode' = \_ _ _ ->
-            return (ExitSuccess, "stdOut", "")
+          { _readProcessWithExitCode' = cccR (ExitSuccess, "stdOut", "")
           , _try'                     = fmap Right
           , _withCurrentDirectory'    = \_ a -> a
           }
@@ -56,8 +63,7 @@ gitSpec = parallel $ do
 
   it "should fail with a mocked 'git test' command (runGitCommand)" $ do
     let fixture = def
-          { _readProcessWithExitCode' = \_ _ _ ->
-            return (ExitFailure 1, "", "stdErr")
+          { _readProcessWithExitCode' = cccR (ExitFailure 1, "", "stdErr")
           , _try'                     = fmap Right
           , _withCurrentDirectory'    = \_ a -> a
           }
@@ -67,8 +73,7 @@ gitSpec = parallel $ do
   it "should fail with a mocked non existing 'git' executable (runGitCommand)"
     $ do
         let fixture = def
-              { _readProcessWithExitCode' = \_ _ _ ->
-                return (ExitSuccess, "", "")
+              { _readProcessWithExitCode' = cccR (ExitSuccess, "", "")
               , _try' = const . return . Left $ userError "failure"
               , _withCurrentDirectory' = \_ a -> a
               }
@@ -87,8 +92,7 @@ gitSpec = parallel $ do
 
   it "should succeed with a mocked 'git status' command (runGitCommandIO)" $ do
     let fixture = def
-          { _readProcessWithExitCode' = \_ _ _ ->
-            return (ExitSuccess, "stdOut", "")
+          { _readProcessWithExitCode' = cccR (ExitSuccess, "stdOut", "")
           , _try'                     = fmap Right
           , _withCurrentDirectory'    = \_ a -> a
           }
@@ -97,8 +101,7 @@ gitSpec = parallel $ do
 
   it "should fail with a mocked 'git test' command (runGitCommandIO)" $ do
     let fixture = def
-          { _readProcessWithExitCode' = \_ _ _ ->
-            return (ExitFailure 1, "", "stdErr")
+          { _readProcessWithExitCode' = cccR (ExitFailure 1, "", "stdErr")
           , _try'                     = fmap Right
           , _withCurrentDirectory'    = \_ a -> a
           }
@@ -108,8 +111,7 @@ gitSpec = parallel $ do
   it "should fail with a mocked non existing 'git' executable (runGitCommandIO)"
     $ do
         let fixture = def
-              { _readProcessWithExitCode' = \_ _ _ ->
-                return (ExitSuccess, "", "")
+              { _readProcessWithExitCode' = cccR (ExitSuccess, "", "")
               , _try' = const . return . Left $ userError "failure"
               , _withCurrentDirectory' = \_ a -> a
               }

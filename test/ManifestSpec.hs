@@ -1,3 +1,7 @@
+-- | The Manifest tests
+--
+-- @since 0.1.0
+
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE KindSignatures        #-}
 {-# LANGUAGE MultiParamTypeClasses #-}

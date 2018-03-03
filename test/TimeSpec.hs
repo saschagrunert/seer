@@ -1,3 +1,7 @@
+-- | The Time tests
+--
+-- @since 0.1.0
+
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE KindSignatures        #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -26,7 +30,7 @@ import Data.Yaml                    (decode
                                     ,encode)
 import Seer.Time                    (Duration(Duration)
                                     ,MonadTime
-                                    ,WeekDay (..)
+                                    ,WeekDay(..)
                                     ,dayAvailable
                                     ,dayAvailableFromTo
                                     ,dayNotAvailable
@@ -49,7 +53,7 @@ import Test.Tasty.Hspec             (Spec
                                     ,it
                                     ,parallel
                                     ,shouldBe)
-import Test.Tasty.QuickCheck        (Arbitrary (..)
+import Test.Tasty.QuickCheck        (Arbitrary(..)
                                     ,elements
                                     ,testProperty
                                     ,(==>))

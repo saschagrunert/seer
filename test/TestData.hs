@@ -1,3 +1,7 @@
+-- | Test relevant static data
+--
+-- @since 0.1.0
+
 module TestData
   ( testAction
   , testActionRealDuration
@@ -6,6 +10,7 @@ module TestData
   , testSchedule
   , testMetadata
   , testTime
+  , testTime2000
   , testError
   ) where
 
@@ -97,6 +102,9 @@ testMetadata = Metadata {creationTimestamp = testTime, uid = nil}
 
 testTime :: UTCTime
 testTime = UTCTime {utctDay = fromGregorian 0 0 0, utctDayTime = 0}
+
+testTime2000 :: UTCTime
+testTime2000 = UTCTime {utctDay = fromGregorian 0 0 2000, utctDayTime = 0}
 
 testError :: Either IOError b
 testError = Left $ userError "failure"

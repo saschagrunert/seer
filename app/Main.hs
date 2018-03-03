@@ -9,13 +9,18 @@ module Main
 import Cli                 (Args (Args)
                            ,BasicCommand (Config
                                          ,Create
+                                         ,Delete
                                          ,Get)
                            ,ConfigCommand (GetConfig
                                           ,SetStorage)
-                           ,CreateCommand (Action
-                                          ,Resource
-                                          ,Schedule
-                                          ,Storage)
+                           ,CreateCommand (CreateAction
+                                          ,CreateResource
+                                          ,CreateSchedule
+                                          ,CreateStorage)
+                           ,DeleteCommand (DeleteAction
+                                          ,DeleteSchedule
+                                          ,DeleteResource
+                                          ,DeleteStorage)
                            ,GetCommand (Actions
                                        ,Resources
                                        ,Schedules
@@ -33,6 +38,10 @@ import Seer                (createAction
                            ,createResource
                            ,createSchedule
                            ,createStorage
+                           ,deleteAction
+                           ,deleteResource
+                           ,deleteSchedule
+                           ,deleteStorage
                            ,getActions
                            ,getConfig
                            ,getResources
@@ -66,17 +75,21 @@ main = customExecParser p parser >>= run
 --
 -- @since 0.1.0
 run :: Args -> IO ()
-run (Args (Config (SetStorage n))) = call $ setDefaultStorage n
-run (Args (Config GetConfig     )) = call getConfig
-run (Args (Create (Action n r d))) = call $ createAction n d r
-run (Args (Create (Resource n d m t w h f s u))) =
+run (Args (Config (SetStorage n)      )) = call $ setDefaultStorage n
+run (Args (Config GetConfig           )) = call getConfig
+run (Args (Create (CreateAction n r d))) = call $ createAction n d r
+run (Args (Create (CreateResource n d m t w h f s u))) =
   call $ createResource n d (m, t, w, h, f, s, u)
-run (Args (Create (Schedule f r a))) = call $ createSchedule f r a
-run (Args (Create (Storage n r   ))) = call $ createStorage n r
-run (Args (Get    Actions         )) = call getActions
-run (Args (Get    Resources       )) = call getResources
-run (Args (Get    Schedules       )) = call getSchedules
-run (Args (Get    Storages        )) = call getStorages
+run (Args (Create (CreateSchedule f r a))) = call $ createSchedule f r a
+run (Args (Create (CreateStorage n r   ))) = call $ createStorage n r
+run (Args (Delete (DeleteAction   n    ))) = call $ deleteAction n
+run (Args (Delete (DeleteResource n    ))) = call $ deleteResource n
+run (Args (Delete (DeleteSchedule n    ))) = call $ deleteSchedule n
+run (Args (Delete (DeleteStorage  n    ))) = call $ deleteStorage n
+run (Args (Get    (Schedules      a    ))) = call $ getSchedules a
+run (Args (Get    Actions               )) = call getActions
+run (Args (Get    Resources             )) = call getResources
+run (Args (Get    Storages              )) = call getStorages
 
 -- | Call a function and print the result.
 --

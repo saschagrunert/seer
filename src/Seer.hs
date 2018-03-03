@@ -7,8 +7,12 @@ module Seer
   , MonadSeer
   , createAction
   , createResource
-  , createStorage
   , createSchedule
+  , createStorage
+  , deleteAction
+  , deleteResource
+  , deleteSchedule
+  , deleteStorage
   , getActions
   , getConfig
   , getResources
@@ -25,7 +29,8 @@ import           Data.Bifunctor         (bimap
 import           Data.List              (isInfixOf
                                         ,sortBy
                                         ,transpose)
-import           Data.Time.Clock        (UTCTime)
+import           Data.Time.Clock        (UTCTime
+                                        ,getCurrentTime)
 import           Data.UUID              (UUID)
 import qualified Seer.Action as A       (Action
                                         ,ActionSpec(name)
@@ -57,6 +62,10 @@ import           Seer.Storage           (Storage
                                         ,loadResources
                                         ,loadSchedules
                                         ,new
+                                        ,remove
+                                        ,removeActions
+                                        ,removeResources
+                                        ,removeSchedules
                                         ,save
                                         ,saveActions
                                         ,saveConfig
@@ -77,6 +86,8 @@ import           Seer.Time              (Availabilities
                                         ,parseDateTime
                                         ,utcToLocal
                                         ,weekAvailableFromTo)
+import           Seer.Utils             ((>>-)
+                                        ,rstrip)
 import           System.IO.Error        (ioeGetErrorString)
 import           Text.PrettyPrint.Boxes (hsep
                                         ,left
@@ -95,6 +106,7 @@ version = "0.1.0"
 --
 -- @since 0.1.0
 class Monad m => MonadSeer m where
+  getCurrentTime' :: m UTCTime
   getLine' :: m String
   list' :: m (Either IOError [[String]])
   loadActions' ::  Storage -> m (Either IOError [A.Action])
@@ -107,6 +119,10 @@ class Monad m => MonadSeer m where
   newResource' :: String -> Maybe String -> Availabilities -> m R.Resource
   newSchedule' :: UTCTime -> UUID -> UUID -> m S.Schedule
   newStorage' :: Storage -> Maybe String -> m (Either IOError ())
+  removeActions' :: Storage -> [A.Action] -> m (Either IOError ())
+  removeResources' :: Storage -> [R.Resource] -> m (Either IOError ())
+  removeSchedules' :: Storage -> [S.Schedule] -> m (Either IOError ())
+  removeStorage' :: Storage -> m (Either IOError ())
   save' :: Storage -> m (Either IOError ())
   saveActions' :: Storage -> [A.Action] -> m (Either IOError ())
   saveConfig' :: C.Config -> m (Either IOError ())
@@ -119,18 +135,23 @@ class Monad m => MonadSeer m where
 --
 -- @since 0.1.0
 instance MonadSeer IO where
+  getCurrentTime' = getCurrentTime
   getLine' = getLine
   list' = list
   loadActions' = loadActions
   loadConfig' = loadConfig
   loadResources' = loadResources
   loadSchedules' = loadSchedules
-  log' = putStrLn . (++) "- "
+  log' = putStrLn
   newAction' = A.new
   newConfig' = C.new
   newResource' = R.new
   newSchedule' = S.new
   newStorage' = new
+  removeActions' = removeActions
+  removeSchedules' = removeSchedules
+  removeResources' = removeResources
+  removeStorage' = remove
   save' = save
   saveActions' = saveActions
   saveConfig' = saveConfig
@@ -211,7 +232,8 @@ maybeString s  = Just s
 tablify
   :: [[String]] -- ^ The list list to be formatted
   -> String     -- ^ The result
-tablify r = render . hsep 2 left $ vcat left . map text <$> transpose r
+tablify r =
+  rstrip . render . hsep 2 left $ vcat left . map text <$> transpose r
 
 -- | The standard message when nothing was found
 --
@@ -309,48 +331,60 @@ getResources :: MonadSeer m => m (Either Error String)
 getResources = getAndTabilifyEntity loadResources'
 
 -- | List all available Schedules for the default Storage. Evaluates to either
--- a fully formatted table (Right) or an error message (Left).
+-- a fully formatted table (Right) or an error message (Left). The second
+-- argument specifies if all schedules or just the future ones should be shown.
 --
 -- @since 0.1.0
-getSchedules :: MonadSeer m => m (Either Error String)
-getSchedules =
+getSchedules
+  :: MonadSeer m
+  => Bool                    -- ^ True if also past schedules should be shown
+  -> m (Either Error String) -- ^ The result
+getSchedules showAll =
   getDefaultStorage
     >>| ( \d -> do
           sx <- loadSchedules' d
           rx <- loadResources' d
           ax <- loadActions' d
+          t  <- getCurrentTime'
           case (sx, rx, ax) of
-            (Left e , _      , _      ) -> leftError e
-            (_      , Left e , _      ) -> leftError e
-            (_      , _      , Left e ) -> leftError e
-            (Right s, Right r, Right a) -> if null s
-              then return $ Right nf
-              else (Right . tablify . (:) header) <$> rows r a s
+            (Left e, _     , _     ) -> leftError e
+            (_     , Left e, _     ) -> leftError e
+            (_     , _     , Left e) -> leftError e
+            (Right s, Right r, Right a) ->
+              rows r a s t
+                >>= ( \k -> return . Right $ if null k
+                                             then
+                                               nf
+                                             else
+                                               tablify $ header : k
+                    )
         )
  where
-  end v x y = maybe "" dateTimeFormat $ evaluateEnd
-    (S.start $ spec v)
-    (R.availabilities $ spec x)
-    (A.duration $ spec y)
-  n     = "✗ not available"
-  rname = R.name . spec
-  aname = A.name . spec
-  fuid a = filter (\x -> uid (metadata x) == a)
-  sortFrom x y = if S.start (spec x) > S.start (spec y) then GT else LT
-  header = ["FROM", "TO", "RESOURCE", "ACTION", "CREATED"]
-  rows r a s = mapM
-    ( \v -> do
+  header = ["#", "FROM", "TO", "DURATION", "RESOURCE", "ACTION", "CREATED"]
+  rows r a s t = mapM
+    ( \(i, v) -> do
       cr <- utcToLocal' (creationTimestamp $ metadata v)
-      let fr = dateTimeFormat . S.start $ spec v
+      let fr = dateTimeFormat $ start v
       let ru = S.resourceID $ spec v
       let au = S.actionID $ spec v
+      let l  = [show i, fr]
       case (fuid ru r, fuid au a) of
-        (x:_, y:_) -> return [fr, end v x y, rname x, aname y, cr]
-        (_  , y:_) -> return [fr, n, n, aname y, cr]
-        (x:_, _  ) -> return [fr, n, rname x, n, cr]
-        (_  , _  ) -> return [fr, n, n, n, cr]
+        (x:_, y:_) -> return $ l ++ [end v x y, adura y, rname x, aname y, cr]
+        (_  , y:_) -> return $ l ++ [n, adura y, n, aname y, cr]
+        (x:_, _  ) -> return $ l ++ [n, n, rname x, n, cr]
+        (_  , _  ) -> return $ l ++ [n, n, n, n, cr]
     )
-    (sortBy sortFrom s)
+    (zip [1 :: Int ..] . filter (past t) $ sortBy sortFrom s)
+  past t x = showAll || start x >= t
+  sortFrom x y = if start x > start y then GT else LT
+  fuid a = filter (\x -> uid (metadata x) == a)
+  end v x y = maybe "" dateTimeFormat
+    $ evaluateEnd (start v) (R.availabilities $ spec x) (A.duration $ spec y)
+  n = "✗ not available"
+  start x = S.start $ spec x
+  rname = R.name . spec
+  aname = A.name . spec
+  adura = show . A.duration . spec
 
 -- | Create a new Storage and evaluate to an Error if anything went wrong.
 --
@@ -367,14 +401,28 @@ createStorage n r =
 -- entity and syncs the default storage afterwards.
 --
 -- @since 0.1.0
-defaultSync
+saveAndSync
   :: (Applicative f, MonadSeer m)
   => (String -> f a -> m (Either IOError b)) -- ^ The entity save function
   -> a                                       -- ^ The entity to be saved
   -> m (Either Error String)                 -- ^ The result
-defaultSync f x =
-  getDefaultStorage
-    >>| (\s -> f s (pure x) >>| (const . bimapIOErrorDone $ save' s))
+saveAndSync f x = getDefaultStorage >>| (\s -> f s (pure x) >>| sync s)
+
+-- | A convenience remove and sync.
+--
+-- @since 0.1.0
+removeAndSync
+  :: MonadSeer m
+  => (String -> t -> m (Either IOError a)) -- ^ The removal function
+  -> t                                     -- ^ The element to be removed
+  -> m (Either Error String)               -- ^ The result
+removeAndSync f x = getDefaultStorage >>| (\s -> f s x >>| sync s)
+
+-- | A convenience sync.
+--
+-- @since 0.1.0
+sync :: MonadSeer m => Storage -> a -> m (Either Error String)
+sync s = const . bimapIOErrorDone $ save' s
 
 -- | Create a new 'Action' for a given name, description and duration.
 --
@@ -386,7 +434,7 @@ createAction
   -> String                  -- ^ The duration as a String
   -> m (Either Error String) -- ^ The result
 createAction n d r = newAction' n (maybeString d) r
-  >>= maybeError "Unable to create Action" (defaultSync saveActions')
+  >>= maybeError "Unable to create Action" (saveAndSync saveActions')
 
 -- | Create a new 'Resource' for a given name, description and available times.
 -- The available times in the list needs to be in the order from Monday to
@@ -401,7 +449,7 @@ createResource
   -> m (Either Error String)                                  -- ^ The result
 createResource n d a =
   maybeError "Unable to parse time spans"
-             (newResource' n (maybeString d) >=> defaultSync saveResources')
+             (newResource' n (maybeString d) >=> saveAndSync saveResources')
     $ toAvailability a
  where
   toAvailability (m, t, w, h, f, s, u) =
@@ -415,6 +463,17 @@ createResource n d a =
       ++ i Sun u
   i _ "" = []
   i x y  = pure $ (,) x y
+
+-- | Filter an entity by a given filter function
+--
+-- @since 0.1.0
+filterEntity
+  :: String         -- ^ The filter string
+  -> (b -> String)  -- ^ The filter applicator
+  -> [Manifest b]   -- ^ The list to be filtered
+  -> [Manifest b]   -- ^ The result
+filterEntity n l = filter $ contains n l
+  where contains x y = isInfixOf x . y . spec
 
 -- | Create a new 'Schedule' for two given date strings (from/to), an resource
 -- and and action name.
@@ -438,8 +497,8 @@ createSchedule f r a =
               (_     , Left e) -> leftError e
               (Right allResources, Right allActions) ->
                 case
-                    ( filter (nameContains r R.name) allResources
-                    , filter (nameContains a A.name) allActions
+                    ( filterEntity r R.name allResources
+                    , filterEntity a A.name allActions
                     )
                   of
                     ([], _ ) -> leftNotFound rs r
@@ -454,6 +513,7 @@ createSchedule f r a =
                           buildSchedule dir parsedDate resource action
         )
  where
+  leftParseError x = return . Left $ printf "Unable to parse date '%s'" x
   as   = "Action"
   rs   = "Resource"
   uuid = uid . metadata
@@ -463,28 +523,37 @@ createSchedule f r a =
   startDate x = S.start $ spec x
   endDate x y z =
     evaluateEnd x (R.availabilities $ spec y) (A.duration $ spec z)
-  nameContains x y = isInfixOf x . y . spec
-  leftParseError x = le $ printf "Unable to parse date '%s'" x
   leftNotFound x y = le $ printf "No %s found for '%s'" x y
   le x = return $ Left x
   buildSchedule d p re ac =
     case evaluateStart p (R.availabilities $ spec re) of
       Nothing -> le "Unable calculate start date"
       Just from ->
-        log' (printf "Using calculated start time at %s" $ dateTimeFormat from)
+        let
+          end = endDate from re ac
+        in
+          logTime from end
           >>  loadSchedules' d
           >>| ( \s ->
                 if not
-                     .   or
-                     $   ( \x -> isInRange (endDate from re ac)
-                                           (startDate x)
-                                           (endDate (startDate x) re ac)
-                         )
-                     <$> filter (\x -> uuid re == S.resourceID (spec x)) s
-                  then newSchedule' from (uuid re) (uuid ac)
-                    >>= defaultSync saveSchedules'
-                  else le "The action is not schedulable at this date"
+                   .   or
+                   $   ( \x -> isInRange end
+                                         (startDate x)
+                                         (endDate (startDate x) re ac)
+                       )
+                   <$> filter ((==) (uuid re) . S.resourceID . spec) s
+                then
+                  newSchedule' from (uuid re) (uuid ac)
+                    >>= saveAndSync saveSchedules'
+                else
+                  le "The action is not schedulable at this time"
               )
+  logTime x (Just y) = log' $ printf "Using calculated date range: %s - %s"
+                                     (dateTimeFormat x)
+                                     (dateTimeFormat y)
+  logTime x _ =
+    log' . printf "Unable to calculate end time for start: %s" $ dateTimeFormat
+      x
 
 -- | An generic entity chooser, displays the entities as a well formatted table
 -- and lets the user interactively choose one item. Evaluates to 'Nothing' if
@@ -503,9 +572,87 @@ chooseOneOf a xs  = do
   log' lxs
   h <- getLine'
   case reads h :: [(Int, String)] of
-    ((i, _):_) -> return . itemOf $ i - 1
-    _          -> return Nothing
+    (i, _):_ -> return . itemOf $ i - 1
+    _        -> return Nothing
  where
   itemOf i | i >= l || i < 0 = Nothing
            | otherwise       = Just (xs !! i)
   l = length xs
+
+-- | Delete a Storage by a given name.
+--
+-- @since 0.1.0
+deleteStorage
+  :: MonadSeer m
+  => String                   -- ^ The name of the Storage
+  -> m (Either Error String)  -- ^ The result
+deleteStorage = bimapIOErrorDone . removeStorage'
+
+-- | A generic entity deletion function.
+--
+-- @since 0.1.0
+deleteEntity
+  :: MonadSeer m
+  => (String -> m (Either IOError a))    -- ^ A entity load function
+  -> (String -> a -> m (Either Error b)) -- ^ A filter and delete function
+  -> m (Either Error b)                  -- ^ The result
+deleteEntity l f = getDefaultStorage >>| (\d -> l d >>| f d)
+
+-- | Delete a 'Schedule' by a given start time.
+--
+-- @since 0.1.0
+deleteSchedule
+  :: MonadSeer m
+  => String                   -- ^ The start date of the Schedule
+  -> m (Either Error String)  -- ^ The result
+deleteSchedule s = deleteEntity loadSchedules' filterAndDelete
+ where
+  filterAndDelete _ sx =
+    case filter ((==) s . dateTimeFormat . S.start . spec) sx of
+      []  -> return . Left $ printf "No Schedule found for start date '%s'" s
+      x:_ -> removeAndSync removeSchedules' $ pure x
+
+-- | A generic entity deletion function for filtering by their name
+--
+-- @since 0.1.0
+filterAndDeleteByName
+  :: (Applicative f, MonadSeer m, ToList a1)
+  => String                   -- ^ The name to be removed
+  -> (a1 -> String)           -- ^ The field to be filtered
+  -> (S.ScheduleSpec -> UUID) -- ^ The uuid retrieval function
+  -> String                   -- ^ The name of the entity type
+  -> (String -> f (Manifest a1) -> m (Either IOError a2)) -- ^ The entity removal function
+  -> Storage                  -- ^ The storage to be changed
+  -> [Manifest a1]            -- ^ The entity to be filtered
+  -> m (Either Error String)  -- ^ The result
+filterAndDeleteByName s f i n r d xs = case filterEntity s f xs of
+  []  -> return . Left $ printf "No %s found for name '%s'" n s
+  [x] -> rmAndSync x
+  es  -> chooseOneOf n es >>= maybeError "Got wrong input" rmAndSync
+ where
+  rmAndSync x =
+    loadSchedules' d
+      >>| ( removeAndSync removeSchedules'
+          . filter ((==) (uid $ metadata x) . i . spec)
+          )
+      >>- (const . removeAndSync r $ pure x)
+
+-- | Delete an 'Action' by a given name. Removes all related Schedules too.
+--
+-- @since 0.1.0
+deleteAction
+  :: MonadSeer m
+  => String                  -- ^ The name of the Action
+  -> m (Either Error String) -- ^ The result
+deleteAction s = deleteEntity loadActions'
+  $ filterAndDeleteByName s A.name S.actionID "Action" removeActions'
+
+-- | Delete a 'Resource' by a given name. Removes all related Schedules too.
+--
+-- @since 0.1.0
+deleteResource
+  :: MonadSeer m
+  => String                  -- ^ The name of the Resource
+  -> m (Either Error String) -- ^ The result
+deleteResource s = deleteEntity loadResources'
+  $ filterAndDeleteByName s R.name S.resourceID "Resource" removeResources'

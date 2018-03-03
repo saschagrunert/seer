@@ -11,10 +11,10 @@ It should be possible, to …
 
 1. …save the applications state persistently.
 2. …work collaboratively with other Users of the application.
-3. …manage a 'Resource'.
-4. …add 'Actions' to certain or multiple 'Resources'.
-5. …display the resource usage of certain 'Resources'.
-6. …display the schedule for a chosen time interval.
+3. …manage (add/remove/edit) 'Actions', 'Resources', 'Schedules'.
+4. …link 'Actions' and 'Resources' via 'Schedules'.
+5. …display the usage of certain 'Resources'.
+6. …display the schedules for a chosen time interval.
 7. …customize the actual work time slots.
 
 ### Reference level
@@ -25,7 +25,6 @@ It should be possible, to …
   Users are able to collaborate out of the box this way.
 - Caching of the application state will be done within the local
   `~/.cache/seer/` directory
-- The configuration management will be done within a (per repository) `yaml`
-  configuration file
-- The entities/projects/tasks/things (aka 'Action's) will also be stored as
-  `yaml` files within the git repository.
+- The configuration management will be done within `yaml` configuration file
+- The different entities will also be stored as `yaml` files within the git
+  repository.

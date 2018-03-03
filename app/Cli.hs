@@ -7,6 +7,7 @@ module Cli
   , BasicCommand(..)
   , ConfigCommand(..)
   , CreateCommand(..)
+  , DeleteCommand(..)
   , GetCommand(..)
   , parser
   ) where
@@ -30,6 +31,7 @@ import Options.Applicative (Parser
                            ,strArgument
                            ,strOption
                            ,subparser
+                           ,switch
                            ,value
                            ,(<**>))
 import Seer                (version)
@@ -45,6 +47,7 @@ newtype Args = Args BasicCommand
 data BasicCommand
   = Config ConfigCommand
   | Create CreateCommand
+  | Delete DeleteCommand
   | Get GetCommand
 
 -- | Representation of all possible 'get' commands
@@ -57,23 +60,32 @@ data ConfigCommand
 -- | Representation of all 'create' commands
 --
 -- @since 0.1.0
-data CreateCommand = Storage String -- ^ Name
-                             String -- ^ Remote
-                   | Action String -- ^ Name
-                            String -- ^ Description
-                            String -- ^ Duration
-                   | Resource String -- ^ Name
-                              String -- ^ Description
-                              String -- ^ Mon
-                              String -- ^ Tue
-                              String -- ^ Wed
-                              String -- ^ Thu
-                              String -- ^ Fri
-                              String -- ^ Sat
-                              String -- ^ Sun
-                   | Schedule String -- ^ Start
-                              String -- ^ Resource
-                              String -- ^ Action
+data CreateCommand = CreateStorage String  -- ^ Name
+                                   String  -- ^ Remote
+                   | CreateAction String   -- ^ Name
+                                  String   -- ^ Description
+                                  String   -- ^ Duration
+                   | CreateResource String -- ^ Name
+                                    String -- ^ Description
+                                    String -- ^ Mon
+                                    String -- ^ Tue
+                                    String -- ^ Wed
+                                    String -- ^ Thu
+                                    String -- ^ Fri
+                                    String -- ^ Sat
+                                    String -- ^ Sun
+                   | CreateSchedule String -- ^ Start
+                                    String -- ^ Resource
+                                    String -- ^ Action
+
+-- | Representation of all possible 'delete' commands
+--
+-- @since 0.1.0
+data DeleteCommand
+  = DeleteStorage String
+  | DeleteAction String
+  | DeleteResource String
+  | DeleteSchedule String
 
 -- | Representation of all possible 'get' commands
 --
@@ -82,7 +94,7 @@ data GetCommand
   = Storages
   | Actions
   | Resources
-  | Schedules
+  | Schedules Bool -- ^ Specifies if all schedules should be shown
 
 
 -- | Parse the main arguments
@@ -117,6 +129,7 @@ basicCommand = subparser
   <> command "config"
              (info configParser (progDesc "Configure the environment"))
   <> command "create" (info createParser (progDesc "Create an entity"))
+  <> command "delete" (info deleteParser (progDesc "Delete an entity"))
   <> command "get"    (info getParser (progDesc "Display one or many entities"))
   )
 
@@ -169,7 +182,15 @@ getParser =
            <> command
                 "schedules"
                 ( info
-                  (pure Schedules <$> helper)
+                  (    Schedules
+                  <$>  switch
+                         (  long "all"
+                         <> short 'a'
+                         <> help
+                              "Show all Schedules instead of the only future ones"
+                         )
+                  <**> helper
+                  )
                   (progDesc "Show all Schedules for the default Storage")
                 )
            )
@@ -186,7 +207,7 @@ createParser =
            <> command
                 "storage"
                 ( info
-                  (    Storage
+                  (    CreateStorage
                   <$>  strArgument (metavar "NAME")
                   <*>  strOption
                          (  long "remote"
@@ -202,7 +223,7 @@ createParser =
            <> command
                 "action"
                 ( info
-                  (    Action
+                  (    CreateAction
                   <$>  strArgument (metavar "NAME")
                   <*>  strArgument
                          (  metavar "DURATION"
@@ -224,7 +245,7 @@ createParser =
            <> command
                 "resource"
                 ( info
-                  (    Resource
+                  (    CreateResource
                   <$>  strArgument (metavar "NAME")
                   <*>  strOption
                          (  long "description"
@@ -289,7 +310,7 @@ createParser =
            <> command
                 "schedule"
                 ( info
-                  (    Schedule
+                  (    CreateSchedule
                   <$>  strArgument
                          ( metavar "START" <> help
                            "The date and time when the Schedule starts"
@@ -305,6 +326,41 @@ createParser =
                   <**> helper
                   )
                   (progDesc "Create a new Storage and set it as new default")
+                )
+           )
+    <**> helper
+
+-- | Parse the 'delete' command
+--
+-- @since 0.1.0
+deleteParser :: Parser BasicCommand
+deleteParser =
+  Delete
+    <$>  subparser
+           (  commandGroup "Delete entities:"
+           <> command
+                "storage"
+                ( info
+                  (DeleteStorage <$> strArgument (metavar "NAME") <**> helper)
+                  (progDesc "Delete a Storage by its name")
+                )
+           <> command
+                "action"
+                ( info
+                  (DeleteAction <$> strArgument (metavar "NAME") <**> helper)
+                  (progDesc "Delete a Action by its name")
+                )
+           <> command
+                "resource"
+                ( info
+                  (DeleteResource <$> strArgument (metavar "NAME") <**> helper)
+                  (progDesc "Delete a Resource by its name")
+                )
+           <> command
+                "schedule"
+                ( info
+                  (DeleteSchedule <$> strArgument (metavar "DATE") <**> helper)
+                  (progDesc "Delete a Schedule by its start date")
                 )
            )
     <**> helper

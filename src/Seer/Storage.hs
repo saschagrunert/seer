@@ -2,23 +2,26 @@
 --
 -- @since 0.1.0
 
-module Seer.Storage (
-    MonadStorage,
-    Storage,
-    list,
-    loadActions,
-    loadConfig,
-    loadResources,
-    loadSchedules,
-    new,
-    remove,
-    save,
-    saveActions,
-    saveConfig,
-    saveResources,
-    saveSchedules,
-    storageExist,
-) where
+module Seer.Storage
+  ( MonadStorage
+  , Storage
+  , list
+  , loadActions
+  , loadConfig
+  , loadResources
+  , loadSchedules
+  , new
+  , remove
+  , removeActions
+  , removeResources
+  , removeSchedules
+  , save
+  , saveActions
+  , saveConfig
+  , saveResources
+  , saveSchedules
+  , storageExist
+  ) where
 
 import Control.Exception     (try)
 import Control.Monad         (foldM
@@ -44,13 +47,15 @@ import Seer.Manifest         (Manifest
                              ,uid)
 import Seer.Resource         (Resource)
 import Seer.Schedule         (Schedule)
-import Seer.Utils            (rstrip)
+import Seer.Utils            (rstrip
+                             ,(>>-))
 import System.Directory      (createDirectory
                              ,createDirectoryIfMissing
                              ,doesDirectoryExist
                              ,getHomeDirectory
                              ,listDirectory
-                             ,removeDirectoryRecursive)
+                             ,removeDirectoryRecursive
+                             ,removeFile)
 import System.FilePath.Glob  (compile
                              ,globDir1)
 import System.FilePath.Posix ((<.>)
@@ -77,6 +82,7 @@ class Monad m => MonadStorage m where
   tryListDirectory' :: FilePath -> m (Either IOError [FilePath])
   tryListYamlFiles' :: FilePath -> m (Either IOError [FilePath])
   tryRemoveDirectoryRecursive' :: FilePath -> m (Either IOError ())
+  tryRemoveFile' :: FilePath -> m (Either IOError ())
   tryWriteFile' :: FilePath -> String -> m (Either IOError ())
 
 -- | The implementation of the isolation abstraction for the IO Monad
@@ -95,8 +101,9 @@ instance MonadStorage IO where
       >>= (\l ->
         if l
         then try . flip globDir1 f . compile $ "*." ++ yamlExt
-        else return . Left . userError $ "directory does not exist: " ++ f)
+        else return . Left . userError $ "Directory does not exist: " ++ f)
     tryRemoveDirectoryRecursive' = try . removeDirectoryRecursive
+    tryRemoveFile' = try . removeFile
     tryWriteFile' f s = try $ writeFile f s
 
 -- | A helper function for functor FilePath appending
@@ -172,16 +179,6 @@ keepFile = ".keep"
 yamlExt :: FilePath
 yamlExt = "yaml"
 
--- | Helper for monadic 'Either' standard handling
---
--- @since 0.1.0
-(>>-)
-  :: Monad m
-  => m (Either a b)        -- ^ The monadic value to be unwrapped
-  -> (b -> m (Either a c)) -- ^ The function to be applied if Either is 'Right'
-  -> m (Either a c)        -- ^ The result
-a >>- f = a >>= either (return . Left) f
-
 -- | Helper for monadic 'Either' function application
 --
 -- @since 0.1.0
@@ -200,7 +197,7 @@ runGit
   => [String]              -- ^ The git commands
   -> Storage               -- ^ The name of the storage
   -> m (Either IOError ()) -- ^ The result
-runGit c n = foldM (\_ x -> go x) (Right ()) c
+runGit c n = foldM (const go) (Right ()) c
   where go x = storageDir n >>- runGitCommandIO' x
 
 -- | Create all needed Storage directories for a given name
@@ -409,10 +406,14 @@ saveFiles
   => [Manifest a]          -- ^ The instances to be stored
   -> FilePath              -- ^ The location of the saved files
   -> m (Either IOError ()) -- ^ The result
-saveFiles a p = foldM
-  (\_ v -> tryEncodeFile' (p </> (toString . uid $ metadata v) <.> yamlExt) v)
-  (Right ())
-  a
+saveFiles a p =
+  foldM (\_ v -> tryEncodeFile' (p </> entityFilename v) v) (Right ()) a
+
+-- | Evaluates to a general filename convention for entities
+--
+-- @since 0.1.0
+entityFilename :: Manifest s -> FilePath
+entityFilename v = (toString . uid $ metadata v) <.> yamlExt
 
 -- | Save certain entities from a list into a directory
 --
@@ -468,3 +469,55 @@ saveConfig c =
     >>- tryCreateDirectoryIfMissing'
     >>> configPath
     >>- (`tryEncodeFile'` c)
+
+-- | A generic entity removal helper
+--
+-- @since 0.1.0
+removeEntity
+  :: MonadStorage m
+  => (t -> m (Either IOError FilePath)) -- ^ The directory path
+  -> t                                  -- ^ The name of the Storage
+  -> Manifest s                         -- ^ The entity to be removed
+  -> m (Either IOError ())              -- ^ The result
+removeEntity f n u = f n <//> entityFilename u >>- tryRemoveFile'
+
+-- | A generic entity list removal helper
+--
+-- @since 0.1.0
+removeEntities
+  :: (MonadStorage m, Foldable t1)
+  => (t2 -> m (Either IOError FilePath))
+  -> t2
+  -> t1 (Manifest s)
+  -> m (Either IOError ())
+removeEntities f n = foldM (const $ removeEntity f n) (Right ())
+
+-- | Remove a list of 'Action's for a given Storage
+--
+-- @since 0.1.0
+removeActions
+  :: MonadStorage m
+  => Storage               -- ^ The name of the storage
+  -> [Action]              -- ^ The 'Action's to be removed
+  -> m (Either IOError ()) -- ^ The result
+removeActions = removeEntities actionsDir
+
+-- | Remove a list of 'Resource's for a given Storage
+--
+-- @since 0.1.0
+removeResources
+  :: MonadStorage m
+  => Storage               -- ^ The name of the storage
+  -> [Resource]            -- ^ The 'Resource's to be removed
+  -> m (Either IOError ()) -- ^ The result
+removeResources = removeEntities resourcesDir
+
+-- | Remove a list of 'Schedule's for a given Storage
+--
+-- @since 0.1.0
+removeSchedules
+  :: MonadStorage m
+  => Storage               -- ^ The name of the storage
+  -> [Schedule]            -- ^ The 'Schedule's to be removed
+  -> m (Either IOError ()) -- ^ The result
+removeSchedules = removeEntities schedulesDir
