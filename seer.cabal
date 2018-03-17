@@ -2,7 +2,7 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 44a84c7c24889a55d2f7b517aedd05901d64f17b3b1fdf236bd6da0ca1a4c8a9
+-- hash: 5ebfad8d74ccbd7fb1dded4575a0052af33c19e68fd44adcc20414e76c9cc070
 
 name:           seer
 version:        0.1.0
@@ -38,6 +38,8 @@ library
     , containers
     , directory
     , filepath
+    , lens
+    , parsec
     , process
     , split
     , time
@@ -47,6 +49,7 @@ library
       Seer
       Seer.Action
       Seer.Config
+      Seer.DateParser
       Seer.Git
       Seer.Manifest
       Seer.Resource
@@ -78,11 +81,13 @@ test-suite seer-test
   main-is: Spec.hs
   hs-source-dirs:
       test
+  default-extensions: FlexibleInstances KindSignatures MultiParamTypeClasses QuasiQuotes RankNTypes ScopedTypeVariables TemplateHaskell
   ghc-options: -rtsopts -threaded -with-rtsopts=-N -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -Wno-unused-top-binds
   build-depends:
       base >=4.7 && <5
     , bytestring
     , directory
+    , lens
     , seer
     , tasty
     , tasty-hspec
@@ -90,10 +95,12 @@ test-suite seer-test
     , test-fixture
     , time
     , uuid
+    , uuid-types
     , yaml
   other-modules:
       ActionSpec
       ConfigSpec
+      DateParserSpec
       GitSpec
       ManifestSpec
       ResourceSpec

@@ -2,18 +2,11 @@
 --
 -- @since 0.1.0
 
-{-# LANGUAGE FlexibleInstances     #-}
-{-# LANGUAGE KindSignatures        #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE QuasiQuotes           #-}
-{-# LANGUAGE RankNTypes            #-}
-{-# LANGUAGE ScopedTypeVariables   #-}
-{-# LANGUAGE TemplateHaskell       #-}
-
 module ManifestSpec
   ( manifestSpec
   ) where
 
+import Control.Lens                 ((^.))
 import Control.Monad.TestFixture    (TestFixture
                                     ,unTestFixture)
 import Control.Monad.TestFixture.TH (def
@@ -22,7 +15,7 @@ import Control.Monad.TestFixture.TH (def
 import Data.UUID                    (nil)
 import Seer.Manifest                (MonadManifest
                                     ,creationTimestamp
-                                    ,newMetadata
+                                    ,currentMetadata
                                     ,uid)
 import Test.Tasty.Hspec             (Spec
                                     ,it
@@ -39,6 +32,6 @@ fixture = def { _getCurrentTime' = return testTime, _nextRandom' = return nil }
 -- Unit tests
 manifestSpec :: Spec
 manifestSpec = parallel $ it "should succeed to create a new Metadata" $ do
-  let result = unTestFixture newMetadata fixture
-  creationTimestamp result `shouldBe` testTime
-  uid result `shouldBe` nil
+  let result = unTestFixture currentMetadata fixture
+  result ^. creationTimestamp `shouldBe` testTime
+  result ^. uid `shouldBe` nil

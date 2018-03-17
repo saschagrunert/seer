@@ -8,100 +8,75 @@ module TestData
   , testConfig
   , testResource
   , testSchedule
+  , testScheduleAfter
   , testMetadata
   , testTime
   , testTime2000
   , testError
   ) where
 
-import           Data.Time.Calendar (fromGregorian)
-import           Data.Time.Clock    (UTCTime (UTCTime
-                                             ,utctDay
-                                             ,utctDayTime))
-import           Data.UUID          (nil)
-import qualified Seer.Action as A   (Action
-                                    ,ActionSpec (ActionSpec
-                                                ,description
-                                                ,duration
-                                                ,name))
-import qualified Seer.Config as C   (Config
-                                    ,ConfigSpec (ConfigSpec
-                                                ,storage))
-import           Seer.Manifest      (ApiVersion (V1)
-                                    ,Manifest (Manifest
-                                              ,apiVersion
-                                              ,kind
-                                              ,metadata
-                                              ,spec)
-                                    ,Metadata (Metadata
-                                              ,creationTimestamp
-                                              ,uid)
-                                    ,ResourceKind (Action
-                                                  ,Config
-                                                  ,Resource
-                                                  ,Schedule))
-import qualified Seer.Resource as R (Resource
-                                    ,ResourceSpec (ResourceSpec
-                                                  ,availabilities
-                                                  ,description
-                                                  ,name))
-import qualified Seer.Schedule as S (Schedule
-                                    ,ScheduleSpec (ScheduleSpec
-                                                  ,actionID
-                                                  ,resourceID
-                                                  ,start))
-import           Seer.Time          (weekAvailable
-                                    ,Duration (Duration))
+import           Data.Time.Calendar       (fromGregorian)
+import           Data.Time.Clock          (UTCTime (UTCTime
+                                                   ,utctDay
+                                                   ,utctDayTime))
+import           Data.UUID.Types.Internal (buildFromWords)
+import           Data.Word                (Word8)
+import qualified Seer.Action as A         (Action
+                                          ,newSpec)
+import qualified Seer.Config as C         (Config
+                                          ,newSpec)
+import           Seer.Manifest            (ApiVersion (V1)
+                                          ,newManifest
+                                          ,Metadata
+                                          ,newMetadata
+                                          ,ResourceKind (Action
+                                                        ,Config
+                                                        ,Resource
+                                                        ,Schedule))
+import qualified Seer.Resource as R       (Resource
+                                          ,newSpec)
+import qualified Seer.Schedule as S       (Schedule
+                                          ,newSpec)
+import           Seer.Time                (weekAvailable
+                                          ,Duration (Duration))
 
 testAction :: A.Action
-testAction = Manifest
-  { apiVersion = V1
-  , kind       = Action
-  , metadata   = testMetadata
-  , spec       = A.ActionSpec
-    { A.name        = "action"
-    , A.description = Nothing
-    , A.duration    = Duration 0
-    }
-  }
+testAction = newManifest V1
+                         Action
+                         (testMetadata 1)
+                         (A.newSpec "action" Nothing (Duration 5))
 
 testConfig :: C.Config
-testConfig = Manifest
-  { apiVersion = V1
-  , kind       = Config
-  , metadata   = testMetadata
-  , spec       = C.ConfigSpec {C.storage = "storage"}
-  }
+testConfig = newManifest V1 Config (testMetadata 2) (C.newSpec "storage")
 
 testResource :: R.Resource
-testResource = Manifest
-  { apiVersion = V1
-  , kind       = Resource
-  , metadata   = testMetadata
-  , spec       = R.ResourceSpec
-    { R.name           = "resource"
-    , R.description    = Nothing
-    , R.availabilities = weekAvailable
-    }
-  }
+testResource = newManifest V1
+                           Resource
+                           (testMetadata 3)
+                           (R.newSpec "resource" Nothing weekAvailable)
 
 testSchedule :: S.Schedule
-testSchedule = Manifest
-  { apiVersion = V1
-  , kind       = Schedule
-  , metadata   = testMetadata
-  , spec       = S.ScheduleSpec
-    { S.start      = testTime
-    , S.resourceID = nil
-    , S.actionID   = nil
-    }
-  }
+testSchedule = newManifest
+  V1
+  Schedule
+  (testMetadata 4)
+  (S.newSpec testTime (buildFromWords 3 0 0 0 0) (buildFromWords 1 0 0 0 0))
 
-testMetadata :: Metadata
-testMetadata = Metadata {creationTimestamp = testTime, uid = nil}
+testScheduleAfter :: S.Schedule
+testScheduleAfter = newManifest
+  V1
+  Schedule
+  (testMetadata 4)
+  (S.newSpec testTimeAfter (buildFromWords 3 0 0 0 0) (buildFromWords 1 0 0 0 0))
+
+testMetadata :: Word8 -> Metadata
+testMetadata x = newMetadata testTime (buildFromWords x 0 0 0 0)
 
 testTime :: UTCTime
 testTime = UTCTime {utctDay = fromGregorian 0 0 0, utctDayTime = 0}
+
+testTimeAfter :: UTCTime
+testTimeAfter = UTCTime {utctDay = fromGregorian 0 0 0, utctDayTime = 5 * 60}
 
 testTime2000 :: UTCTime
 testTime2000 = UTCTime {utctDay = fromGregorian 0 0 2000, utctDayTime = 0}
@@ -110,13 +85,8 @@ testError :: Either IOError b
 testError = Left $ userError "failure"
 
 testActionRealDuration :: A.Action
-testActionRealDuration = Manifest
-  { apiVersion = V1
-  , kind       = Action
-  , metadata   = testMetadata
-  , spec       = A.ActionSpec
-    { A.name        = "action"
-    , A.description = Nothing
-    , A.duration    = Duration 60
-    }
-  }
+testActionRealDuration = newManifest
+  V1
+  Action
+  (testMetadata 5)
+  (A.newSpec "action" Nothing (Duration 60))

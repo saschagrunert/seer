@@ -2,14 +2,6 @@
 --
 -- @since 0.1.0
 
-{-# LANGUAGE FlexibleInstances     #-}
-{-# LANGUAGE KindSignatures        #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE QuasiQuotes           #-}
-{-# LANGUAGE RankNTypes            #-}
-{-# LANGUAGE ScopedTypeVariables   #-}
-{-# LANGUAGE TemplateHaskell       #-}
-
 module TimeSpec
   ( timeProps
   , timeSpec
@@ -39,7 +31,6 @@ import Seer.Time                    (Duration(Duration)
                                     ,dateTimeFormat
                                     ,evaluateEnd
                                     ,evaluateStart
-                                    ,parseDateTime
                                     ,toList
                                     ,utcToLocal
                                     ,weekAvailable
@@ -447,25 +438,17 @@ timeSpec = parallel $ do
 
   it "should succeed format time"
     $          dateTimeFormat testTime
-    `shouldBe` "0-01-01  0:00"
+    `shouldBe` "01.01.00  0:00"
 
   it "should succeed convert to local time" $ do
     let result = unTestFixture (utcToLocal testTime) fixture
-    result `shouldBe` "0-01-01  0:00"
+    result `shouldBe` "01.01.00  0:00"
 
   it "should succeed convert to local time with day offset" $ do
     let ff =
           def { _getCurrentTimeZone' = return $ minutesToTimeZone (60 * 24) }
     let result = unTestFixture (utcToLocal testTime) ff
-    result `shouldBe` "0-01-02  0:00"
-
-  it "should succeed parse a valid time"
-    $          parseDateTime "0-1-1 00:00"
-    `shouldBe` Just testTime
-
-  it "should fail parse an invalid time"
-    $          parseDateTime "test"
-    `shouldBe` Nothing
+    result `shouldBe` "02.01.00  0:00"
 
   it "should succeed to evaluate end time just fitting"
     $          show

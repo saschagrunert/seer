@@ -2,14 +2,6 @@
 --
 -- @since 0.1.0
 
-{-# LANGUAGE FlexibleInstances     #-}
-{-# LANGUAGE KindSignatures        #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE QuasiQuotes           #-}
-{-# LANGUAGE RankNTypes            #-}
-{-# LANGUAGE ScopedTypeVariables   #-}
-{-# LANGUAGE TemplateHaskell       #-}
-
 module ActionSpec
   ( actionProps
   , actionSpec
@@ -22,9 +14,10 @@ import Control.Monad.TestFixture.TH (def
                                     ,ts)
 import Data.Maybe                   (isJust
                                     ,isNothing)
-import Seer.Action                  (ActionSpec (ActionSpec)
+import Seer.Action                  (ActionSpec
                                     ,MonadAction
-                                    ,new)
+                                    ,new
+                                    ,newSpec)
 import Seer.Manifest                (toList)
 import Test.Tasty                   (TestTree
                                     ,testGroup)
@@ -39,10 +32,10 @@ import TestData                     (testMetadata)
 mkFixture "Fixture" [ts| MonadAction |]
 
 fixture :: Fixture (TestFixture Fixture () ())
-fixture = def { _newMetadata' = return testMetadata }
+fixture = def { _currentMetadata' = return (testMetadata 1) }
 
 testActionData :: String -> String -> Int -> ActionSpec
-testActionData a b c = ActionSpec a (Just b) (Duration c)
+testActionData a b c = newSpec a (Just b) (Duration c)
 
 -- Action.hs related tests
 -- Unit tests

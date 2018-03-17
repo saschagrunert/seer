@@ -2,18 +2,33 @@
 --
 -- @since 0.1.0
 
-{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveGeneric   #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module Seer.Manifest
-  ( ApiVersion(..)
-  , Manifest(..)
+  ( ApiVersion(V1)
+  , Manifest
   , MonadManifest
-  , Metadata(..)
-  , ResourceKind(..)
-  , ToList(..)
+  , Metadata
+  , ResourceKind(Action
+                ,Config
+                ,Resource
+                ,Schedule)
+  , ToList(headers
+          ,toList)
+  , apiVersion
+  , creationTimestamp
+  , currentMetadata
+  , kind
+  , metadata
+  , newManifest
   , newMetadata
+  , spec
+  , uid
   ) where
 
+import Control.Lens    (makeLenses
+                       ,(^.))
 import Data.Time.Clock (UTCTime
                        ,getCurrentTime)
 import Data.UUID       (UUID)
@@ -40,11 +55,11 @@ instance MonadManifest IO where
 --
 -- @since 0.1.0
 data Manifest s = Manifest
-  { apiVersion :: ApiVersion   -- ^ The API Version
-  , kind       :: ResourceKind -- ^ The resource Kind
-  , metadata   :: Metadata     -- ^ Resource metadata
-  , spec       :: s            -- ^ The specification of the Resource
-  } deriving (Eq, Generic, Show)
+  { _apiVersion :: ApiVersion   -- ^ The API Version
+  , _kind       :: ResourceKind -- ^ The resource Kind
+  , _metadata   :: Metadata     -- ^ Resource metadata
+  , _spec       :: s            -- ^ The specification of the Resource
+  } deriving (Eq, Generic, Ord, Show)
 
 -- | Parses the 'Manifest' from YAML/JSON
 --
@@ -63,20 +78,13 @@ class ToList a where
   headers :: a -> [String]
   toList :: a -> [String]
 
--- | For every Manifest the toList instance will be mapped to the spec
---
--- @since 0.1.0
-instance ToList s => ToList (Manifest s) where
-  headers l = headers $ spec l
-  toList l = toList $ spec l
-
 -- | The available API versions
 --
 -- @since 0.1.0
 data ApiVersion
   = V1 -- ^ Version 1
   | V2 -- ^ Version 2
-  deriving (Eq, Enum, Generic, Show)
+  deriving (Eq, Enum, Generic, Ord, Show)
 
 -- | Parses the 'Version' from YAML/JSON
 --
@@ -96,7 +104,7 @@ data ResourceKind
   | Action   -- ^ References a 'Action'
   | Resource -- ^ References a 'Resource'
   | Schedule -- ^ References a 'Schedule'
-  deriving (Eq, Generic, Show)
+  deriving (Eq, Generic, Ord, Show)
 
 
 -- | Parses the 'ResourceKind' from YAML/JSON
@@ -113,9 +121,12 @@ instance ToJSON ResourceKind
 --
 -- @since 0.1.0
 data Metadata = Metadata
-  { creationTimestamp :: UTCTime -- ^ The creation time of the Metadata
-  , uid               :: UUID    -- ^ The unique ID for this Metadata
-  } deriving (Eq, Generic, Show)
+  { _creationTimestamp :: UTCTime -- ^ The creation time of the Metadata
+  , _uid               :: UUID    -- ^ The unique ID for this Metadata
+  } deriving (Eq, Generic, Ord, Show)
+
+makeLenses ''Metadata
+makeLenses ''Manifest
 
 -- | Parses the 'Metadata' from YAML/JSON
 --
@@ -127,11 +138,31 @@ instance FromJSON Metadata
 -- @since 0.1.0
 instance ToJSON Metadata
 
+-- | For every Manifest the toList instance will be mapped to the spec
+--
+-- @since 0.1.0
+instance ToList s => ToList (Manifest s) where
+  headers l = headers $ l ^. spec
+  toList l = toList $ l ^. spec
+
+-- | Create a new Manifest for a given 'ApiVersion', 'ResourceKind', 'Metadata'
+-- and Spec
+--
+-- @since 0.1.0
+newManifest :: ApiVersion -> ResourceKind -> Metadata -> s -> Manifest s
+newManifest = Manifest
+
+-- | Create a new Metadata for a given 'UTCTime' and 'UUID'
+--
+-- @since 0.1.0
+newMetadata :: UTCTime -> UUID -> Metadata
+newMetadata = Metadata
+
 -- | Generates a new 'Metadata' from the current UTC time and a random UUID
 --
 -- @since 0.1.0
-newMetadata :: MonadManifest m => m Metadata
-newMetadata = do
+currentMetadata :: MonadManifest m => m Metadata
+currentMetadata = do
   time <- getCurrentTime'
   uuid <- nextRandom'
-  return Metadata {creationTimestamp = time, uid = uuid}
+  return $ Metadata time uuid

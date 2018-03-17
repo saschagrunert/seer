@@ -1,7 +1,7 @@
 # seer 🔮
 [![Build Status](https://travis-ci.org/saschagrunert/seer.svg)](https://travis-ci.org/saschagrunert/seer) [![Build status](https://ci.appveyor.com/api/projects/status/1bjn2k6rjlsldu0b?svg=true)](https://ci.appveyor.com/project/saschagrunert/seer) [![License MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/saschagrunert/seer/blob/master/LICENSE) [![Development Status](https://img.shields.io/badge/status-in%20development-yellow.svg)](#about)
 
-## A collaborative product vision, roadmap and resource planning tool
+## A collaborative resource planning tool
 
 Table of contents:
 

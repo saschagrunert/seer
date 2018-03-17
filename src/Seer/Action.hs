@@ -2,40 +2,48 @@
 --
 -- @since 0.1.0
 
-{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveGeneric   #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module Seer.Action
   ( Action
-  , ActionSpec(..)
+  , ActionSpec
   , MonadAction
+  , description
+  , duration
+  , name
   , new
+  , newSpec
   ) where
 
-import           Data.Maybe    (fromMaybe)
-import           Data.Yaml     (FromJSON
-                               ,ToJSON)
-import           GHC.Generics  (Generic)
-import           Seer.Manifest (ApiVersion (V1)
-                               ,Manifest (Manifest)
-                               ,Metadata
-                               ,ResourceKind (Action)
-                               ,ToList (headers
-                                       ,toList)
-                               ,newMetadata)
-import           Seer.Time     (Duration
-                               ,parseDuration)
+import Control.Lens  (makeLenses
+                     ,(^.))
+import Data.Maybe    (fromMaybe)
+import Data.Yaml     (FromJSON
+                     ,ToJSON)
+import GHC.Generics  (Generic)
+import Seer.Manifest (ApiVersion (V1)
+                     ,Manifest
+                     ,Metadata
+                     ,ResourceKind (Action)
+                     ,ToList (headers
+                             ,toList)
+                     ,currentMetadata
+                     ,newManifest)
+import Seer.Time     (Duration
+                     ,parseDuration)
 
 -- | A abstraction Monad to isolate real IO Actions
 --
 -- @since 0.1.0
 class Monad m => MonadAction m where
-  newMetadata' :: m Metadata
+  currentMetadata' :: m Metadata
 
 -- | The implementation of the isolation abstraction for the IO Monad
 --
 -- @since 0.1.0
 instance MonadAction IO where
-  newMetadata' = newMetadata
+  currentMetadata' = currentMetadata
 
 -- | A synonym for an Action
 --
@@ -46,10 +54,12 @@ type Action = Manifest ActionSpec
 --
 -- @since 0.1.0
 data ActionSpec = ActionSpec
-  { name        :: String       -- ^ The name of the Action
-  , description :: Maybe String -- ^ The general description of the Action
-  , duration    :: Duration     -- ^ The duration of the Action
-  } deriving (Eq, Generic, Show)
+  { _name        :: String       -- ^ The name of the Action
+  , _description :: Maybe String -- ^ The general description of the Action
+  , _duration    :: Duration     -- ^ The duration of the Action
+  } deriving (Eq, Generic, Ord, Show)
+
+makeLenses ''ActionSpec
 
 -- | Parses the 'ActionSpec' from YAML/JSON
 --
@@ -61,6 +71,16 @@ instance FromJSON ActionSpec
 -- @since 0.1.0
 instance ToJSON ActionSpec
 
+-- | Get a new 'ActionSpec' for a given name, description and duration
+--
+-- @since 0.1.0
+newSpec
+  :: String           -- ^ The name of the Resource
+  -> Maybe String     -- ^ The description of the Resource
+  -> Duration         -- ^ The Duration in minutes
+  -> ActionSpec       -- ^ The result
+newSpec = ActionSpec
+
 -- | Generates a new 'Manifest' including a 'ActionSpec'
 --
 -- @since 0.1.0
@@ -71,8 +91,8 @@ new
   -> String            -- ^ The duration of the Action
   -> m (Maybe Action)  -- ^ The result
 new a b c =
-  (\m -> (Manifest V1 Action m . ActionSpec a b) <$> parseDuration c)
-    <$> newMetadata'
+  (\m -> (newManifest V1 Action m . newSpec a b) <$> parseDuration c)
+    <$> currentMetadata'
 
 -- | Encode an 'ActionSpec' as a list of Strings
 --
@@ -81,6 +101,6 @@ instance ToList ActionSpec where
   headers _ = ["NAME", "DESCRIPTION", "DURATION"]
   toList x = [a, b, c]
     where
-      a = name x
-      b = fromMaybe "" $ description x
-      c = show $ duration x
+      a = _name x
+      b = fromMaybe "" $ x ^. description
+      c = show $ x ^. duration

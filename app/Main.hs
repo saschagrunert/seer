@@ -10,6 +10,7 @@ import Cli                 (Args (Args)
                            ,BasicCommand (Config
                                          ,Create
                                          ,Delete
+                                         ,Edit
                                          ,Get)
                            ,ConfigCommand (GetConfig
                                           ,SetStorage)
@@ -21,10 +22,14 @@ import Cli                 (Args (Args)
                                           ,DeleteSchedule
                                           ,DeleteResource
                                           ,DeleteStorage)
-                           ,GetCommand (Actions
-                                       ,Resources
-                                       ,Schedules
-                                       ,Storages)
+                           ,EditCommand (EditAction
+                                        ,EditResource
+                                        ,EditSchedule
+                                        ,EditStorage)
+                           ,GetCommand (GetActions
+                                       ,GetResources
+                                       ,GetSchedules
+                                       ,GetStorages)
                            ,parser)
 import Options.Applicative (ParserPrefs (ParserPrefs
                                         ,prefBacktrack
@@ -42,6 +47,10 @@ import Seer                (createAction
                            ,deleteResource
                            ,deleteSchedule
                            ,deleteStorage
+                           ,editAction
+                           ,editResource
+                           ,editSchedule
+                           ,editStorage
                            ,getActions
                            ,getConfig
                            ,getResources
@@ -80,16 +89,21 @@ run (Args (Config GetConfig           )) = call getConfig
 run (Args (Create (CreateAction n r d))) = call $ createAction n d r
 run (Args (Create (CreateResource n d m t w h f s u))) =
   call $ createResource n d (m, t, w, h, f, s, u)
-run (Args (Create (CreateSchedule f r a))) = call $ createSchedule f r a
+run (Args (Create (CreateSchedule s r a))) = call $ createSchedule s r a
 run (Args (Create (CreateStorage n r   ))) = call $ createStorage n r
 run (Args (Delete (DeleteAction   n    ))) = call $ deleteAction n
 run (Args (Delete (DeleteResource n    ))) = call $ deleteResource n
 run (Args (Delete (DeleteSchedule n    ))) = call $ deleteSchedule n
 run (Args (Delete (DeleteStorage  n    ))) = call $ deleteStorage n
-run (Args (Get    (Schedules      a    ))) = call $ getSchedules a
-run (Args (Get    Actions               )) = call getActions
-run (Args (Get    Resources             )) = call getResources
-run (Args (Get    Storages              )) = call getStorages
+run (Args (Edit   (EditAction   n m d r))) = call $ editAction n m d r
+run (Args (Edit   (EditSchedule s n r a))) = call $ editSchedule s n r a
+run (Args (Edit (EditResource x n d m t w h f s u))) =
+  call $ editResource x n d (m, t, w, h, f, s, u)
+run (Args (Edit (EditStorage n m r))) = call $ editStorage n m r
+run (Args (Get  (GetSchedules a   ))) = call $ getSchedules a
+run (Args (Get  GetActions         )) = call getActions
+run (Args (Get  GetResources       )) = call getResources
+run (Args (Get  GetStorages        )) = call getStorages
 
 -- | Call a function and print the result.
 --

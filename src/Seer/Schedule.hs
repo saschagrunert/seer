@@ -2,36 +2,43 @@
 --
 -- @since 0.1.0
 
-{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveGeneric   #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module Seer.Schedule
   ( MonadSchedule
   , Schedule
-  , ScheduleSpec(..)
+  , ScheduleSpec
   , new
+  , newSpec
+  , start
+  , resourceID
+  , actionID
   ) where
 
+import Control.Lens    (makeLenses)
 import Data.Time.Clock (UTCTime)
 import Data.UUID       (UUID)
 import Data.Yaml       (FromJSON, ToJSON)
 import GHC.Generics    (Generic)
 import Seer.Manifest   (ApiVersion (V1)
-                       ,Manifest (Manifest)
+                       ,Manifest
                        ,Metadata
                        ,ResourceKind (Schedule)
-                       ,newMetadata)
+                       ,currentMetadata
+                       ,newManifest)
 
 -- | A abstraction Monad to isolate real IO Actions
 --
 -- @since 0.1.0
 class Monad m => MonadSchedule m where
-  newMetadata' :: m Metadata
+  currentMetadata' :: m Metadata
 
 -- | The implementation of the isolation abstraction for the IO Monad
 --
 -- @since 0.1.0
 instance MonadSchedule IO where
-  newMetadata' = newMetadata
+  currentMetadata' = currentMetadata
 
 -- | A synonym for a Schedule
 --
@@ -42,10 +49,12 @@ type Schedule = Manifest ScheduleSpec
 --
 -- @since 0.1.0
 data ScheduleSpec = ScheduleSpec
-  { start      :: UTCTime -- ^ The start schedule
-  , resourceID :: UUID    -- ^ The referenced 'Resource'
-  , actionID   :: UUID    -- ^ The referenced 'Action'
-  } deriving (Eq, Generic, Show)
+  { _start      :: UTCTime -- ^ The start schedule
+  , _resourceID :: UUID    -- ^ The referenced 'Resource'
+  , _actionID   :: UUID    -- ^ The referenced 'Action'
+  } deriving (Eq, Generic, Ord, Show)
+
+makeLenses ''ScheduleSpec
 
 -- | Parses the 'ScheduleSpec' from YAML/JSON
 --
@@ -57,6 +66,16 @@ instance FromJSON ScheduleSpec
 -- @since 0.1.0
 instance ToJSON ScheduleSpec
 
+-- | Get a new 'ScheduleSpec' for a given start, Resource and Action ID
+--
+-- @since 0.1.0
+newSpec
+  :: UTCTime      -- ^ The name of the Resource
+  -> UUID         -- ^ The description of the Resource
+  -> UUID         -- ^ The Availabilities of the Resource
+  -> ScheduleSpec -- ^ The result
+newSpec = ScheduleSpec
+
 -- | Generates a new 'Manifest' including a 'ScheduleSpec'
 --
 -- @since 0.1.0
@@ -67,4 +86,4 @@ new
   -> UUID        -- ^ The referenced 'Action'
   -> m Schedule  -- ^ The result
 new a b c =
-  (\m -> Manifest V1 Schedule m $ ScheduleSpec a b c) <$> newMetadata'
+  (\m -> newManifest V1 Schedule m $ newSpec a b c) <$> currentMetadata'

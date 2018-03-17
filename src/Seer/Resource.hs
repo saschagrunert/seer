@@ -2,25 +2,33 @@
 --
 -- @since 0.1.0
 
-{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveGeneric   #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module Seer.Resource
   ( MonadResource
   , Resource
-  , ResourceSpec(..)
+  , ResourceSpec
+  , availabilities
+  , description
+  , name
   , new
+  , newSpec
   ) where
 
+import           Control.Lens   (makeLenses
+                                ,(^.))
 import           Data.Maybe     (fromMaybe)
 import           Data.Yaml      (FromJSON
                                 ,ToJSON)
 import           GHC.Generics   (Generic)
 import           Seer.Manifest  (ApiVersion (V1)
-                                ,Manifest (Manifest)
+                                ,Manifest
                                 ,Metadata
                                 ,ResourceKind (Resource)
                                 ,ToList(headers)
-                                ,newMetadata)
+                                ,currentMetadata
+                                ,newManifest)
 import qualified Seer.Time as T (Availabilities
                                 ,toList)
 
@@ -28,13 +36,13 @@ import qualified Seer.Time as T (Availabilities
 --
 -- @since 0.1.0
 class Monad m => MonadResource m where
-  newMetadata' :: m Metadata
+  currentMetadata' :: m Metadata
 
 -- | The implementation of the isolation abstraction for the IO Monad
 --
 -- @since 0.1.0
 instance MonadResource IO where
-  newMetadata' = newMetadata
+  currentMetadata' = currentMetadata
 
 -- | A synonym for a Resource
 --
@@ -45,10 +53,12 @@ type Resource = Manifest ResourceSpec
 --
 -- @since 0.1.0
 data ResourceSpec = ResourceSpec
-  { name           :: String           -- ^ The name of the Resource
-  , description    :: Maybe String     -- ^ The general description of the Resource
-  , availabilities :: T.Availabilities -- ^ The availabilities of the Resource
-  } deriving (Eq, Generic, Show)
+  { _name           :: String           -- ^ The name of the Resource
+  , _description    :: Maybe String     -- ^ The general description of the Resource
+  , _availabilities :: T.Availabilities -- ^ The availabilities of the Resource
+  } deriving (Eq, Generic, Ord, Show)
+
+makeLenses ''ResourceSpec
 
 -- | Parses the 'ResourceSpec' from YAML/JSON
 --
@@ -64,12 +74,22 @@ instance ToJSON ResourceSpec
 --
 -- @since 0.1.0
 instance ToList ResourceSpec where
-  headers l = ["NAME", "DESCRIPTION"] ++ headers (availabilities l)
+  headers l = ["NAME", "DESCRIPTION"] ++ headers (_availabilities l)
   toList x = [a, b] ++ c
     where
-      a = name x
-      b = fromMaybe "" $ description x
-      c = T.toList $ availabilities x
+      a = _name x
+      b = fromMaybe "" $ x ^. description
+      c = T.toList $ x ^. availabilities
+
+-- | Get a new 'ResourceSpec' for a given name, description and availabilities
+--
+-- @since 0.1.0
+newSpec
+  :: String           -- ^ The name of the Resource
+  -> Maybe String     -- ^ The description of the Resource
+  -> T.Availabilities -- ^ The Availabilities of the Resource
+  -> ResourceSpec     -- ^ The result
+newSpec = ResourceSpec
 
 -- | Generates a new 'Manifest' including a 'ResourceSpec'
 --
@@ -81,4 +101,4 @@ new
   -> T.Availabilities -- ^ The Availabilities of the Resource
   -> m Resource       -- ^ The result
 new a b c =
-  (\m -> Manifest V1 Resource m $ ResourceSpec a b c) <$> newMetadata'
+  (\m -> newManifest V1 Resource m $ newSpec a b c) <$> currentMetadata'

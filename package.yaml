@@ -28,6 +28,8 @@ library:
     - containers
     - directory
     - filepath
+    - lens
+    - parsec
     - process
     - split
     - time
@@ -66,9 +68,18 @@ tests:
       - -Wincomplete-uni-patterns
       - -Wredundant-constraints
       - -Wno-unused-top-binds
+    default-extensions:
+      - FlexibleInstances
+      - KindSignatures
+      - MultiParamTypeClasses
+      - QuasiQuotes
+      - RankNTypes
+      - ScopedTypeVariables
+      - TemplateHaskell
     dependencies:
       - bytestring
       - directory
+      - lens
       - seer
       - tasty
       - tasty-hspec
@@ -76,4 +87,5 @@ tests:
       - test-fixture
       - time
       - uuid
+      - uuid-types
       - yaml

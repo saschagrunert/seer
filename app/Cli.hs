@@ -8,6 +8,7 @@ module Cli
   , ConfigCommand(..)
   , CreateCommand(..)
   , DeleteCommand(..)
+  , EditCommand(..)
   , GetCommand(..)
   , parser
   ) where
@@ -26,13 +27,13 @@ import Options.Applicative (Parser
                            ,infoOption
                            ,long
                            ,metavar
+                           ,optional
                            ,progDesc
                            ,short
                            ,strArgument
                            ,strOption
                            ,subparser
                            ,switch
-                           ,value
                            ,(<**>))
 import Seer                (version)
 
@@ -44,58 +45,87 @@ newtype Args = Args BasicCommand
 -- | Representation of all basic commands
 --
 -- @since 0.1.0
-data BasicCommand
-  = Config ConfigCommand
-  | Create CreateCommand
-  | Delete DeleteCommand
-  | Get GetCommand
+data BasicCommand = Config ConfigCommand
+                  | Get GetCommand
+                  | Create CreateCommand
+                  | Delete DeleteCommand
+                  | Edit EditCommand
 
 -- | Representation of all possible 'get' commands
 --
 -- @since 0.1.0
-data ConfigCommand
-  = GetConfig
-  | SetStorage String
+data ConfigCommand = GetConfig
+                   | SetStorage String
+
+-- | Representation of all possible 'get' commands
+--
+-- @since 0.1.0
+data GetCommand = GetStorages
+                | GetActions
+                | GetResources
+                | GetSchedules Bool -- ^ Specifies if all schedules should be shown
 
 -- | Representation of all 'create' commands
 --
 -- @since 0.1.0
-data CreateCommand = CreateStorage String  -- ^ Name
-                                   String  -- ^ Remote
-                   | CreateAction String   -- ^ Name
-                                  String   -- ^ Description
-                                  String   -- ^ Duration
-                   | CreateResource String -- ^ Name
-                                    String -- ^ Description
-                                    String -- ^ Mon
-                                    String -- ^ Tue
-                                    String -- ^ Wed
-                                    String -- ^ Thu
-                                    String -- ^ Fri
-                                    String -- ^ Sat
-                                    String -- ^ Sun
-                   | CreateSchedule String -- ^ Start
-                                    String -- ^ Resource
-                                    String -- ^ Action
+data CreateCommand = CreateStorage { createStorageName :: String          -- ^ Name of the Storage
+                                   , createStorageRemote :: Maybe String  -- ^ Remote of the Storage
+                                   }
+                   | CreateAction { createActionName :: String              -- ^ Name of the Action
+                                  , createActionDuration :: String          -- ^ Duration of the Action
+                                  , createActionDescription :: Maybe String -- ^ Description of the Action
+                                  }
+                   | CreateResource { createResourceName :: String              -- ^ Name of the Resource
+                                    , createResourceDescription :: Maybe String -- ^ Description of the Resource
+                                    , createResourceMon :: Maybe String         -- ^ Mon of the Resource
+                                    , createResourceTue :: Maybe String         -- ^ Tue of the Resource
+                                    , createResourceWed :: Maybe String         -- ^ Wed of the Resource
+                                    , createResourceThu :: Maybe String         -- ^ Thu of the Resource
+                                    , createResourceFri :: Maybe String         -- ^ Fri of the Resource
+                                    , createResourceSat :: Maybe String         -- ^ Sat of the Resource
+                                    , createResourceSun :: Maybe String         -- ^ Sun of the Resource
+                                    }
+                   | CreateSchedule { createScheduleStart :: String     -- ^ Start of the Schedule
+                                    , createScheduleResource :: String -- ^ Resource of the Schedule
+                                    , createScheduleAction :: String   -- ^ Action of the Schedule
+                                    }
 
 -- | Representation of all possible 'delete' commands
 --
 -- @since 0.1.0
-data DeleteCommand
-  = DeleteStorage String
-  | DeleteAction String
-  | DeleteResource String
-  | DeleteSchedule String
+data DeleteCommand = DeleteStorage String   -- ^ Name of the Storage
+                   | DeleteAction String    -- ^ Name of the Action
+                   | DeleteResource String  -- ^ Name of the Resource
+                   | DeleteSchedule String  -- ^ Number of the Schedule
 
--- | Representation of all possible 'get' commands
+-- | Representation of all possible 'edit' commands
 --
 -- @since 0.1.0
-data GetCommand
-  = Storages
-  | Actions
-  | Resources
-  | Schedules Bool -- ^ Specifies if all schedules should be shown
-
+data EditCommand = EditStorage { editStorageName :: String            -- ^ The actual name of the Storage
+                               , editStorageNewName :: Maybe String   -- ^ The new Name of the Storage
+                               , editStorageNewRemote :: Maybe String -- ^ The new Remote of the Storage
+                               }
+                 | EditAction { editActionName :: String                  -- ^ The actual name of the Action
+                              , editActionNewName :: Maybe String         -- ^ The new name of the Action
+                              , editActionNewDescription :: Maybe String  -- ^ The new description of the Action
+                              , editActionNewDuration :: Maybe String     -- ^ The new duration of the Action
+                              }
+                 | EditResource { editResourceName :: String                 -- ^ The Name of the Resource
+                                , editResourceNewName :: Maybe String        -- ^ The new Name of the Resource
+                                , editResourceNewDescription :: Maybe String -- ^ The new Description of the Resource
+                                , editResourceNewMon :: Maybe String         -- ^ The new Mon of the Resource
+                                , editResourceNewTue :: Maybe String         -- ^ The new Tue of the Resource
+                                , editResourceNewWed :: Maybe String         -- ^ The new Wed of the Resource
+                                , editResourceNewThu :: Maybe String         -- ^ The new Thu of the Resource
+                                , editResourceNewFri :: Maybe String         -- ^ The new Fri of the Resource
+                                , editResourceNewSat :: Maybe String         -- ^ The new Sat of the Resource
+                                , editResourceNewSun :: Maybe String         -- ^ The new Sun of the Resource
+                                }
+                 | EditSchedule { editScheduleNumber :: String            -- ^ The number of the Schedule
+                                , editScheduleNewResource :: Maybe String -- ^ The new Resource of the Schedule
+                                , editScheduleNewAction :: Maybe String   -- ^ The new Action of the Schedule
+                                , editScheduleNewStart :: Maybe String    -- ^ The new start of the Schedule
+                                }
 
 -- | Parse the main arguments
 --
@@ -128,9 +158,10 @@ basicCommand = subparser
   (  commandGroup "Basic commands:"
   <> command "config"
              (info configParser (progDesc "Configure the environment"))
+  <> command "get"    (info getParser (progDesc "Display one or many entities"))
   <> command "create" (info createParser (progDesc "Create an entity"))
   <> command "delete" (info deleteParser (progDesc "Delete an entity"))
-  <> command "get"    (info getParser (progDesc "Display one or many entities"))
+  <> command "edit"   (info editParser (progDesc "Edit an entity"))
   )
 
 -- | Parse the 'config' command
@@ -165,24 +196,24 @@ getParser =
            (  commandGroup "Displayable entities:"
            <> command
                 "storages"
-                ( info (pure Storages <$> helper)
+                ( info (pure GetStorages <$> helper)
                        (progDesc "Show all available Storages")
                 )
            <> command
                 "actions"
-                ( info (pure Actions <$> helper)
+                ( info (pure GetActions <$> helper)
                        (progDesc "Show all Actions for the default Storage")
                 )
            <> command
                 "resources"
                 ( info
-                  (pure Resources <$> helper)
+                  (pure GetResources <$> helper)
                   (progDesc "Show all Resources for the default Storage")
                 )
            <> command
                 "schedules"
                 ( info
-                  (    Schedules
+                  (    GetSchedules
                   <$>  switch
                          (  long "all"
                          <> short 'a'
@@ -191,7 +222,7 @@ getParser =
                          )
                   <**> helper
                   )
-                  (progDesc "Show all Schedules for the default Storage")
+                  (progDesc "Show Schedules for the default Storage")
                 )
            )
     <**> helper
@@ -209,12 +240,13 @@ createParser =
                 ( info
                   (    CreateStorage
                   <$>  strArgument (metavar "NAME")
-                  <*>  strOption
-                         (  long "remote"
-                         <> short 'r'
-                         <> metavar "REMOTE"
-                         <> value ""
-                         <> help "Optional remote location of a storage"
+                  <*>  optional
+                         ( strOption
+                           (  long "remote"
+                           <> short 'r'
+                           <> metavar "REMOTE"
+                           <> help "Optional remote location of a storage"
+                           )
                          )
                   <**> helper
                   )
@@ -231,12 +263,13 @@ createParser =
                               "The time the action will take, \
                               \like '1y', '2w', '3d', '4h', '5m'"
                          )
-                  <*>  strOption
-                         (  long "description"
-                         <> short 'd'
-                         <> metavar "DESCRIPTION"
-                         <> value ""
-                         <> help "Optional description for the Action"
+                  <*>  optional
+                         ( strOption
+                           (  long "description"
+                           <> short 'd'
+                           <> metavar "DESCRIPTION"
+                           <> help "Optional description for the Action"
+                           )
                          )
                   <**> helper
                   )
@@ -247,61 +280,69 @@ createParser =
                 ( info
                   (    CreateResource
                   <$>  strArgument (metavar "NAME")
-                  <*>  strOption
-                         (  long "description"
-                         <> short 'd'
-                         <> metavar "DESCRIPTION"
-                         <> value ""
-                         <> help "Optional description for the Resource"
+                  <*>  optional
+                         ( strOption
+                           (  long "description"
+                           <> short 'd'
+                           <> metavar "DESCRIPTION"
+                           <> help "Optional description for the Resource"
+                           )
                          )
-                  <*>  strOption
-                         (  long "mon"
-                         <> short 'm'
-                         <> metavar "HH:MM-HH:MM"
-                         <> value ""
-                         <> help "Monday availability"
+                  <*>  optional
+                         ( strOption
+                           (  long "mon"
+                           <> short 'm'
+                           <> metavar "HH:MM-HH:MM"
+                           <> help "Monday availability"
+                           )
                          )
-                  <*>  strOption
-                         (  long "tue"
-                         <> short 't'
-                         <> metavar "HH:MM-HH:MM"
-                         <> value ""
-                         <> help "Tuesday availability"
+                  <*>  optional
+                         ( strOption
+                           (  long "tue"
+                           <> short 't'
+                           <> metavar "HH:MM-HH:MM"
+                           <> help "Tuesday availability"
+                           )
                          )
-                  <*>  strOption
-                         (  long "wed"
-                         <> short 'w'
-                         <> metavar "HH:MM-HH:MM"
-                         <> value ""
-                         <> help "Wednesday availability"
+                  <*>  optional
+                         ( strOption
+                           (  long "wed"
+                           <> short 'w'
+                           <> metavar "HH:MM-HH:MM"
+                           <> help "Wednesday availability"
+                           )
                          )
-                  <*>  strOption
-                         (  long "thu"
-                         <> short 'h'
-                         <> metavar "HH:MM-HH:MM"
-                         <> value ""
-                         <> help "Thursday availability"
+                  <*>  optional
+                         ( strOption
+                           (  long "thu"
+                           <> short 'h'
+                           <> metavar "HH:MM-HH:MM"
+                           <> help "Thursday availability"
+                           )
                          )
-                  <*>  strOption
-                         (  long "fri"
-                         <> short 'f'
-                         <> metavar "HH:MM-HH:MM"
-                         <> value ""
-                         <> help "Friday availability"
+                  <*>  optional
+                         ( strOption
+                           (  long "fri"
+                           <> short 'f'
+                           <> metavar "HH:MM-HH:MM"
+                           <> help "Friday availability"
+                           )
                          )
-                  <*>  strOption
-                         (  long "sat"
-                         <> short 's'
-                         <> metavar "HH:MM-HH:MM"
-                         <> value ""
-                         <> help "Saturday availability"
+                  <*>  optional
+                         ( strOption
+                           (  long "sat"
+                           <> short 's'
+                           <> metavar "HH:MM-HH:MM"
+                           <> help "Saturday availability"
+                           )
                          )
-                  <*>  strOption
-                         (  long "sun"
-                         <> short 'u'
-                         <> metavar "HH:MM-HH:MM"
-                         <> value ""
-                         <> help "Sunday availability"
+                  <*>  optional
+                         ( strOption
+                           (  long "sun"
+                           <> short 'u'
+                           <> metavar "HH:MM-HH:MM"
+                           <> help "Sunday availability"
+                           )
                          )
                   <**> helper
                   )
@@ -325,7 +366,7 @@ createParser =
                          )
                   <**> helper
                   )
-                  (progDesc "Create a new Storage and set it as new default")
+                  (progDesc "Create a new Schedule within the default Storage")
                 )
            )
     <**> helper
@@ -359,8 +400,196 @@ deleteParser =
            <> command
                 "schedule"
                 ( info
-                  (DeleteSchedule <$> strArgument (metavar "DATE") <**> helper)
-                  (progDesc "Delete a Schedule by its start date")
+                  (    DeleteSchedule
+                  <$>  strArgument (metavar "NUMBER")
+                  <**> helper
+                  )
+                  (progDesc "Delete a Schedule by its number")
+                )
+           )
+    <**> helper
+
+-- | Parse the 'edit' command
+--
+-- @since 0.1.0
+editParser :: Parser BasicCommand
+editParser =
+  Edit
+    <$>  subparser
+           (  commandGroup "Edit entities:"
+           <> command
+                "storage"
+                ( info
+                  (    EditStorage
+                  <$>  strArgument (metavar "NAME")
+                  <*>  optional
+                         ( strOption
+                           (  long "name"
+                           <> short 'n'
+                           <> metavar "NEW_NAME"
+                           <> help "Change the name of a storage"
+                           )
+                         )
+                  <*>  optional
+                         ( strOption
+                           (  long "remote"
+                           <> short 'r'
+                           <> metavar "NEW_REMOTE"
+                           <> help
+                                "Change the remote location of a storage. \
+                                \For remote removal pass an '-' argument"
+                           )
+                         )
+                  <**> helper
+                  )
+                  (progDesc "Edit a Storage by its name")
+                )
+           <> command
+                "action"
+                ( info
+                  (    EditAction
+                  <$>  strArgument (metavar "NAME")
+                  <*>  optional
+                         ( strOption
+                           (  long "name"
+                           <> short 'n'
+                           <> metavar "NEW_NAME"
+                           <> help "Change the name of the Action"
+                           )
+                         )
+                  <*>  optional
+                         ( strOption
+                           (  long "description"
+                           <> short 'd'
+                           <> metavar "NEW_DESCRIPTION"
+                           <> help "Change the description of the Action"
+                           )
+                         )
+                  <*>  optional
+                         ( strOption
+                           (  long "duration"
+                           <> short 'r'
+                           <> metavar "NEW_DURATION"
+                           <> help "Change the duration of the Action"
+                           )
+                         )
+                  <**> helper
+                  )
+                  (progDesc "Edit an Action by its name")
+                )
+           <> command
+                "resource"
+                ( info
+                  (    EditResource
+                  <$>  strArgument (metavar "NAME")
+                  <*>  optional
+                         ( strOption
+                           (  long "name"
+                           <> short 'n'
+                           <> metavar "NEW_NAME"
+                           <> help "Change the name of the Resource"
+                           )
+                         )
+                  <*>  optional
+                         ( strOption
+                           (  long "description"
+                           <> short 'd'
+                           <> metavar "NEW_DESCRIPTION"
+                           <> help "The new description for the Resource"
+                           )
+                         )
+                  <*>  optional
+                         ( strOption
+                           (  long "mon"
+                           <> short 'm'
+                           <> metavar "HH:MM-HH:MM"
+                           <> help "The new Monday availability"
+                           )
+                         )
+                  <*>  optional
+                         ( strOption
+                           (  long "tue"
+                           <> short 't'
+                           <> metavar "HH:MM-HH:MM"
+                           <> help "The new Tuesday availability"
+                           )
+                         )
+                  <*>  optional
+                         ( strOption
+                           (  long "wed"
+                           <> short 'w'
+                           <> metavar "HH:MM-HH:MM"
+                           <> help "The new Wednesday availability"
+                           )
+                         )
+                  <*>  optional
+                         ( strOption
+                           (  long "thu"
+                           <> short 'h'
+                           <> metavar "HH:MM-HH:MM"
+                           <> help "The new Thursday availability"
+                           )
+                         )
+                  <*>  optional
+                         ( strOption
+                           (  long "fri"
+                           <> short 'f'
+                           <> metavar "HH:MM-HH:MM"
+                           <> help "The new Friday availability"
+                           )
+                         )
+                  <*>  optional
+                         ( strOption
+                           (  long "sat"
+                           <> short 's'
+                           <> metavar "HH:MM-HH:MM"
+                           <> help "The new Saturday availability"
+                           )
+                         )
+                  <*>  optional
+                         ( strOption
+                           (  long "sun"
+                           <> short 'u'
+                           <> metavar "HH:MM-HH:MM"
+                           <> help "The new Sunday availability"
+                           )
+                         )
+                  <**> helper
+                  )
+                  (progDesc "Edit a Resource by its name")
+                )
+           <> command
+                "schedule"
+                ( info
+                  (    EditSchedule
+                  <$>  strArgument (metavar "NUMBER")
+                  <*>  optional
+                         ( strOption
+                           (  long "start"
+                           <> short 's'
+                           <> metavar "NEW_START"
+                           <> help "Change the start date of a Schedule"
+                           )
+                         )
+                  <*>  optional
+                         ( strOption
+                           (  long "resource"
+                           <> short 'r'
+                           <> metavar "NEW_RESOURCE"
+                           <> help "Change the Resource of a Schedule"
+                           )
+                         )
+                  <*>  optional
+                         ( strOption
+                           (  long "action"
+                           <> short 'a'
+                           <> metavar "NEW_ACTION"
+                           <> help "Change the Action of a Schedule"
+                           )
+                         )
+                  <**> helper
+                  )
+                  (progDesc "Edit a Schedule by its number")
                 )
            )
     <**> helper

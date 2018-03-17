@@ -5,6 +5,9 @@
 module Seer.Storage
   ( MonadStorage
   , Storage
+  , configExist
+  , editName
+  , editRemote
   , list
   , loadActions
   , loadConfig
@@ -23,6 +26,7 @@ module Seer.Storage
   , storageExist
   ) where
 
+import Control.Lens          ((^.))
 import Control.Exception     (try)
 import Control.Monad         (foldM
                              ,mapM
@@ -52,9 +56,11 @@ import Seer.Utils            (rstrip
 import System.Directory      (createDirectory
                              ,createDirectoryIfMissing
                              ,doesDirectoryExist
+                             ,doesFileExist
                              ,getHomeDirectory
                              ,listDirectory
                              ,removeDirectoryRecursive
+                             ,renameDirectory
                              ,removeFile)
 import System.FilePath.Glob  (compile
                              ,globDir1)
@@ -62,6 +68,7 @@ import System.FilePath.Posix ((<.>)
                              ,(</>))
 import System.IO.Error       (IOError
                              ,userError)
+import Text.Printf           (printf)
 
 -- | A reference to a Storage
 --
@@ -73,6 +80,7 @@ type Storage = String
 -- @since 0.1.0
 class Monad m => MonadStorage m where
   decodeFileEither' :: FromJSON a => FilePath -> m (Either ParseException a)
+  doesFileExist' :: FilePath -> m Bool
   runGitCommand' :: String -> String -> m (Either String String)
   runGitCommandIO' :: String -> String -> m (Either IOError ())
   tryCreateDirectory' :: FilePath -> m (Either IOError ())
@@ -83,6 +91,7 @@ class Monad m => MonadStorage m where
   tryListYamlFiles' :: FilePath -> m (Either IOError [FilePath])
   tryRemoveDirectoryRecursive' :: FilePath -> m (Either IOError ())
   tryRemoveFile' :: FilePath -> m (Either IOError ())
+  tryRenameDirectory' :: FilePath -> FilePath -> m (Either IOError ())
   tryWriteFile' :: FilePath -> String -> m (Either IOError ())
 
 -- | The implementation of the isolation abstraction for the IO Monad
@@ -90,6 +99,7 @@ class Monad m => MonadStorage m where
 -- @since 0.1.0
 instance MonadStorage IO where
     decodeFileEither' = decodeFileEither
+    doesFileExist' = doesFileExist
     runGitCommand' = runGitCommand
     runGitCommandIO' = runGitCommandIO
     tryCreateDirectory' = try . createDirectory
@@ -101,9 +111,10 @@ instance MonadStorage IO where
       >>= (\l ->
         if l
         then try . flip globDir1 f . compile $ "*." ++ yamlExt
-        else return . Left . userError $ "Directory does not exist: " ++ f)
+        else rlu $ "Directory does not exist: " ++ f)
     tryRemoveDirectoryRecursive' = try . removeDirectoryRecursive
     tryRemoveFile' = try . removeFile
+    tryRenameDirectory' a b = try $ renameDirectory a b
     tryWriteFile' f s = try $ writeFile f s
 
 -- | A helper function for functor FilePath appending
@@ -116,6 +127,15 @@ instance MonadStorage IO where
   -> f1 (f2 FilePath) -- ^ The resulting FilePath
 a <//> b = fmap (</> b) <$> a
 
+-- | A helper function for a Left userError
+--
+-- @since 0.1.0
+rlu :: MonadStorage m => String -> m (Either IOError a)
+rlu = return . Left . userError
+
+-- | The global Seer directory
+--
+-- @since 0.1.0
 seerDir :: MonadStorage m => m (Either IOError FilePath)
 seerDir = tryGetHomeDirectory' <//> ".seer"
 
@@ -235,8 +255,12 @@ createCacheDir = cacheDir >>- tryCreateDirectoryIfMissing'
 --
 -- @since 0.1.0
 list :: (MonadStorage m) => m (Either IOError [[String]])
-list = listStorages >>- (\d -> (Right . zipWith f d) <$> mapM remote d)
-  where f a b = [a, b]
+list = listStorages >>- (\d -> (Right . zipWith f d) <$> mapM r d)
+ where
+  f a b = [a, b]
+  r e = fr "" <$> remote e "get-url origin"
+  fr _ (Right b) = b
+  fr b _         = b
 
 -- | Evaluates to `True` if a `Storage` exists
 --
@@ -258,12 +282,14 @@ listStorages = cacheDir >>- tryListDirectory'
 -- @since 0.1.0
 remote
   :: MonadStorage m
-  => Storage  -- ^ The name of the storage
-  -> m String -- ^ The result
-remote n = storageDir n >>= either
-  e
-  (runGitCommand' "remote get-url origin" >=> either e (return . rstrip))
-  where e _ = return ""
+  => Storage                   -- ^ The name of the storage
+  -> String                    -- ^ An addition to the remote fetch command
+  -> m (Either IOError String) -- ^ The result
+remote n e =
+  storageDir n
+    >>- (   runGitCommand' ("remote " ++ e)
+        >=> either rlu (return . Right . rstrip)
+        )
 
 -- | Create a new storage for the given name and optional remote location. This
 -- means in general it will:
@@ -293,13 +319,20 @@ new
 new n r =
   createCacheDir
     >>> createStorageDirs n
-    >>> createKeepFiles n
-    >>> g ["init", "add .", "commit -m Init"]
-    >>> maybe (return $ Right ())
-              (\x -> g ["remote add origin " ++ x, "push -u origin master"])
+    >>> (   createKeepFiles n
+        >>> g ["init", "add .", "commit -m Init"]
+        >>> maybe
+              (return $ Right ())
+              ( \x ->
+                g [printf "remote add origin '%s'" x, "push -u origin master"]
+              )
               r
-  where g c = runGit c n
-
+        )
+    >>= h
+ where
+  g c = runGit c n
+  h (Left e) = remove n >>- (\_ -> return $ Left e)
+  h e        = return e
 
 -- | Save the current storage and sync with the remote location if necessary.
 --
@@ -320,7 +353,7 @@ sync
 sync d =
   storageDir d
     >>- ( runGitCommand' "remote" >=> either
-          (return . Left . userError)
+          rlu
           ( \o ->
             if null o then return (Right ()) else runGit ["pull", "push"] d
           )
@@ -398,6 +431,12 @@ loadSchedules = loadEntities . schedulesDir
 loadConfig :: MonadStorage m => m (Either IOError Config)
 loadConfig = configPath >>- loadFile
 
+-- | Check if the configuration actually exist
+--
+-- @since 0.1.0
+configExist :: MonadStorage m => m (Either IOError Bool)
+configExist = configPath >>- (doesFileExist' >=> return . Right)
+
 -- | Save the given list of 'ToJSON a' to the 'FilePath'
 --
 -- @since 0.1.0
@@ -413,7 +452,7 @@ saveFiles a p =
 --
 -- @since 0.1.0
 entityFilename :: Manifest s -> FilePath
-entityFilename v = (toString . uid $ metadata v) <.> yamlExt
+entityFilename v = toString (v ^. metadata . uid) <.> yamlExt
 
 -- | Save certain entities from a list into a directory
 --
@@ -521,3 +560,36 @@ removeSchedules
   -> [Schedule]            -- ^ The 'Schedule's to be removed
   -> m (Either IOError ()) -- ^ The result
 removeSchedules = removeEntities schedulesDir
+
+-- | Change the name of a given Storage. Errors on any IO Error and if the new
+-- Storage already exist
+--
+-- @since 0.1.0
+editName
+  :: MonadStorage m
+  => Storage               -- ^ The name of the old Storage
+  -> Storage               -- ^ The name of the new Storage
+  -> m (Either IOError ()) -- ^ The result
+editName o n | n == o    = rlu "Old and new Storage names do not differ"
+             | null n    = rlu "Impossible new storage name"
+             | otherwise = storageExist o >>- (\x -> storageExist n >>- c x)
+ where
+  c False _    = rlu "Storage does not exist"
+  c _     True = rlu "New storage already exist"
+  c _     _    = storageDir o >>- (\x -> storageDir n >>- tryRenameDirectory' x)
+
+-- | Change the remote location of a given Storage.
+--
+-- @since 0.1.0
+editRemote
+  :: MonadStorage m
+  => Storage               -- ^ The name of the Storage
+  -> String                -- ^ The new remote location
+  -> m (Either IOError ()) -- ^ The result
+editRemote n r = remote n "" >>- c
+ where
+  c "" | null r    = return $ Right ()
+       | otherwise = go "add"
+  c _ | null r    = go "remove"
+      | otherwise = go "set-url"
+  go x = runGit [printf "remote %s origin '%s'" x r] n

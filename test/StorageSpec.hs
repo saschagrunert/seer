@@ -2,14 +2,6 @@
 --
 -- @since 0.1.0
 
-{-# LANGUAGE FlexibleInstances     #-}
-{-# LANGUAGE KindSignatures        #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE QuasiQuotes           #-}
-{-# LANGUAGE RankNTypes            #-}
-{-# LANGUAGE ScopedTypeVariables   #-}
-{-# LANGUAGE TemplateHaskell       #-}
-
 module StorageSpec
   ( storageSpec
   , storageModuleSpec
@@ -26,6 +18,9 @@ import Data.Either                  (isLeft
 import Data.Functor.Identity        (Identity)
 import Data.Yaml                    (ParseException (NonScalarKey))
 import Seer.Storage                 (MonadStorage
+                                    ,configExist
+                                    ,editName
+                                    ,editRemote
                                     ,list
                                     ,loadActions
                                     ,loadConfig
@@ -76,12 +71,14 @@ rRSlash :: TestFixture Fixture () () (Either a String)
 rRSlash = return $ Right "/"
 
 fixture :: Fixture (TestFixture Fixture () ())
-fixture = def { _tryCreateDirectory'          = crRUnit
+fixture = def { _doesFileExist'               = const $ return True
+              , _tryCreateDirectory'          = crRUnit
               , _tryCreateDirectoryIfMissing' = crRUnit
               , _tryEncodeFile'               = ccrRUnit
               , _tryGetHomeDirectory'         = rRSlash
               , _tryListDirectory'            = crR ["1", "2", "3"]
               , _tryRemoveDirectoryRecursive' = crRUnit
+              , _tryRenameDirectory'          = ccrRUnit
               , _tryWriteFile'                = ccrRUnit
               , _runGitCommand'               = ccrR ""
               , _runGitCommandIO'             = ccrRUnit
@@ -110,6 +107,7 @@ storageSpec = parallel $ do
     $ do
         let ff = def { _tryGetHomeDirectory'         = rRSlash
                      , _tryCreateDirectoryIfMissing' = crError
+                     , _tryRemoveDirectoryRecursive' = crRUnit
                      }
         let result = unTestFixture (new "name" (Just "remote")) ff
         result `shouldBe` testError
@@ -119,6 +117,7 @@ storageSpec = parallel $ do
         let ff = def { _tryGetHomeDirectory'         = rRSlash
                      , _tryCreateDirectoryIfMissing' = crRUnit
                      , _tryCreateDirectory'          = crError
+                     , _tryRemoveDirectoryRecursive' = crRUnit
                      }
         let result = unTestFixture (new "name" (Just "remote")) ff
         result `shouldBe` testError
@@ -128,6 +127,7 @@ storageSpec = parallel $ do
                  , _tryCreateDirectoryIfMissing' = crRUnit
                  , _tryCreateDirectory'          = crRUnit
                  , _tryWriteFile'                = ccrError
+                 , _tryRemoveDirectoryRecursive' = crRUnit
                  }
     let result = unTestFixture (new "name" (Just "remote")) ff
     result `shouldBe` testError
@@ -138,6 +138,7 @@ storageSpec = parallel $ do
                  , _tryCreateDirectory'          = crRUnit
                  , _tryWriteFile'                = ccrRUnit
                  , _runGitCommandIO'             = ccrError
+                 , _tryRemoveDirectoryRecursive' = crRUnit
                  }
     let result = unTestFixture (new "name" (Just "remote")) ff
     isLeft result `shouldBe` True
@@ -393,6 +394,133 @@ storageSpec = parallel $ do
   it "should fail to remove an Schedule if file removal fails" $ do
     let ff = def { _tryGetHomeDirectory' = rRSlash, _tryRemoveFile' = crError }
     let result = unTestFixture (removeSchedules "" [testSchedule]) ff
+    result `shouldBe` testError
+
+  it "should succeed to edit a Storage name" $ do
+    let result = unTestFixture (editName "1" "a") fixture
+    isRight result `shouldBe` True
+
+  it "should fail to edit a Storage name if names equal" $ do
+    let result = unTestFixture (editName "a" "a") fixture
+    isLeft result `shouldBe` True
+
+  it "should fail to edit a Storage name if new name is empty" $ do
+    let result = unTestFixture (editName "1" "") fixture
+    isLeft result `shouldBe` True
+
+  it "should fail to edit a Storage name if Storage not existing" $ do
+    let result = unTestFixture (editName "not_existing" "a") fixture
+    isLeft result `shouldBe` True
+
+  it "should fail to edit a Storage name if Storage already exist" $ do
+    let result = unTestFixture (editName "2" "1") fixture
+    isLeft result `shouldBe` True
+
+  it "should fail to edit a Storage name if HOME directory retrieval fails" $ do
+    let ff     = def { _tryGetHomeDirectory' = return testError }
+    let result = unTestFixture (editName "1" "a") ff
+    result `shouldBe` testError
+
+  it "should fail to edit a Storage name if directory listing fails" $ do
+    let ff =
+          def { _tryGetHomeDirectory' = rRSlash, _tryListDirectory' = crError }
+    let result = unTestFixture (editName "1" "a") ff
+    result `shouldBe` testError
+
+  it "should fail to edit a Storage name if directory rename fails" $ do
+    let ff = def { _tryGetHomeDirectory' = rRSlash
+                 , _tryListDirectory'    = crR ["1", "2", "3"]
+                 , _tryRenameDirectory'  = ccrError
+                 }
+    let result = unTestFixture (editName "1" "a") ff
+    result `shouldBe` testError
+
+  it "should succeed to edit a Storage remote" $ do
+    let result = unTestFixture (editRemote "" "") fixture
+    isRight result `shouldBe` True
+
+  it "should succeed to edit a Storage remote (do nothing)" $ do
+    let ff = def { _tryGetHomeDirectory' = rRSlash, _runGitCommand' = ccrR "" }
+    let result = unTestFixture (editRemote "" "") ff
+    isRight result `shouldBe` True
+
+  it "should succeed to edit a Storage remote (add)" $ do
+    let ff = def { _tryGetHomeDirectory' = rRSlash
+                 , _runGitCommand'       = ccrR ""
+                 , _runGitCommandIO'     = ccrRUnit
+                 }
+    let result = unTestFixture (editRemote "" "a") ff
+    isRight result `shouldBe` True
+
+  it "should succeed to edit a Storage remote (remove)" $ do
+    let ff = def { _tryGetHomeDirectory' = rRSlash
+                 , _runGitCommand'       = ccrR "a"
+                 , _runGitCommandIO'     = ccrRUnit
+                 }
+    let result = unTestFixture (editRemote "" "") ff
+    isRight result `shouldBe` True
+
+  it "should succeed to edit a Storage remote (set-url)" $ do
+    let ff = def { _tryGetHomeDirectory' = rRSlash
+                 , _runGitCommand'       = ccrR "a"
+                 , _runGitCommandIO'     = ccrRUnit
+                 }
+    let result = unTestFixture (editRemote "" "b") ff
+    isRight result `shouldBe` True
+
+  it "should fail to edit a Storage remote if HOME directory retrieval fails"
+    $ do
+        let ff     = def { _tryGetHomeDirectory' = return testError }
+        let result = unTestFixture (editRemote "" "") ff
+        result `shouldBe` testError
+
+  it "should fail to edit a Storage remote if git remote fails" $ do
+    let ff = def { _tryGetHomeDirectory' = rRSlash
+                 , _runGitCommand'       = const . const . return $ Left ""
+                 }
+    let result = unTestFixture (editRemote "" "") ff
+    isLeft result `shouldBe` True
+
+  it "should fail to edit a Storage remote if remote change failed (add)" $ do
+    let ff = def { _tryGetHomeDirectory' = rRSlash
+                 , _runGitCommand'       = ccrR ""
+                 , _runGitCommandIO'     = ccrError
+                 }
+    let result = unTestFixture (editRemote "" "a") ff
+    result `shouldBe` testError
+
+  it "should fail to edit a Storage remote if remote change failed (remove)"
+    $ do
+        let ff = def { _tryGetHomeDirectory' = rRSlash
+                     , _runGitCommand'       = ccrR "a"
+                     , _runGitCommandIO'     = ccrError
+                     }
+        let result = unTestFixture (editRemote "" "") ff
+        result `shouldBe` testError
+
+  it "should fail to edit a Storage remote if remote change failed (set-url)"
+    $ do
+        let ff = def { _tryGetHomeDirectory' = rRSlash
+                     , _runGitCommand'       = ccrR "a"
+                     , _runGitCommandIO'     = ccrError
+                     }
+        let result = unTestFixture (editRemote "" "b") ff
+        result `shouldBe` testError
+
+  it "should succeed check if config exist (evaluate True)" $ do
+    let result = unTestFixture (configExist) fixture
+    result `shouldBe` Right True
+
+  it "should succeed check if config exist (evaluate False)" $ do
+    let ff = def { _tryGetHomeDirectory' = rRSlash
+                 , _doesFileExist'       = const $ return False
+                 }
+    let result = unTestFixture (configExist) ff
+    result `shouldBe` Right False
+
+  it "should fail check if config exist if HOME directory retrieval fails" $ do
+    let ff     = def { _tryGetHomeDirectory' = return testError }
+    let result = unTestFixture (configExist) ff
     result `shouldBe` testError
 
 -- Module tests

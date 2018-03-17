@@ -10,6 +10,7 @@ import ActionSpec            (actionProps
                              ,actionSpec)
 import ConfigSpec            (configProps
                              ,configSpec)
+import DateParserSpec        (dateParserSpec)
 import GitSpec               (gitSpec)
 import ManifestSpec          (manifestSpec)
 import ResourceSpec          (resourceProps
@@ -40,21 +41,23 @@ main = do
 -- Unit tests based on hspec
 unitTests :: IO TestTree
 unitTests = do
-  actionUnitTests   <- testSpec "Action" actionSpec
-  configUnitTests   <- testSpec "Config" configSpec
-  gitUnitTests      <- testSpec "Git" gitSpec
-  manifestUnitTests <- testSpec "Manifest" manifestSpec
-  resourceUnitTests <- testSpec "Resource" resourceSpec
-  scheduleUnitTests <- testSpec "Schedule" scheduleSpec
-  seerUnitTests     <- testSpec "Seer" seerSpec
-  storageUnitTests  <- testSpec "Storage" storageSpec
-  timeUnitTests     <- testSpec "Time" timeSpec
-  utilsUnitTests    <- testSpec "Utils" utilsSpec
+  actionUnitTests     <- testSpec "Action" actionSpec
+  configUnitTests     <- testSpec "Config" configSpec
+  dateParserUnitTests <- testSpec "DateParser" dateParserSpec
+  gitUnitTests        <- testSpec "Git" gitSpec
+  manifestUnitTests   <- testSpec "Manifest" manifestSpec
+  resourceUnitTests   <- testSpec "Resource" resourceSpec
+  scheduleUnitTests   <- testSpec "Schedule" scheduleSpec
+  seerUnitTests       <- testSpec "Seer" seerSpec
+  storageUnitTests    <- testSpec "Storage" storageSpec
+  timeUnitTests       <- testSpec "Time" timeSpec
+  utilsUnitTests      <- testSpec "Utils" utilsSpec
   return $ testGroup
     "Unit Tests"
     [ actionUnitTests
     , timeUnitTests
     , configUnitTests
+    , dateParserUnitTests
     , gitUnitTests
     , manifestUnitTests
     , resourceUnitTests

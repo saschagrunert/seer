@@ -2,12 +2,12 @@
 --
 -- @since 0.1.0
 
-{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveGeneric   #-}
 
 module Seer.Time
   ( Availabilities
   , Availability
-  , Duration(..)
+  , Duration(Duration)
   , MonadTime
   , TimeSpanString
   , WeekDay(..)
@@ -19,7 +19,6 @@ module Seer.Time
   , dateTimeFormat
   , evaluateEnd
   , evaluateStart
-  , parseDateTime
   , parseDuration
   , toList
   , utcToLocal
@@ -47,7 +46,6 @@ import qualified Data.Map.Strict as M (Map
                                       ,unionsWith)
 import qualified Data.Set as S        (Set
                                       ,empty
-                                      ,foldr
                                       ,fromList
                                       ,isSubsetOf
                                       ,singleton
@@ -63,8 +61,7 @@ import           Data.Time.Clock      (UTCTime(UTCTime)
                                       ,utctDayTime)
 import           Data.Time.Format     (FormatTime
                                       ,defaultTimeLocale
-                                      ,formatTime
-                                      ,parseTimeM)
+                                      ,formatTime)
 import           Data.Time.LocalTime  (TimeOfDay (TimeOfDay)
                                       ,TimeZone
                                       ,getCurrentTimeZone
@@ -78,7 +75,6 @@ import           Seer.Manifest        (ToList (headers
                                               ,toList))
 import           Seer.Utils           (rstrip)
 import           Text.Printf          (printf)
-
 
 -- | A abstraction Monad to isolate real IO Actions
 --
@@ -291,7 +287,7 @@ mergeAvailability l r = reduce $ S.union (expand l) (expand r)
 expand
   :: Availability         -- ^ The Availability to expand
   -> ExpandedAvailability -- ^ The resulting ExpandedAvailability
-expand (Availability l) = S.foldr k S.empty l
+expand (Availability l) = foldr k S.empty l
   where k t = S.union $ toExpandedAvailability t
 
 -- | Reduces an 'ExpandedAvailability' to an 'Availability'
@@ -470,7 +466,7 @@ mergeTimeSpans = toTimeSpan . S.unions . map toExpandedAvailability
 --
 -- @since 0.1.0
 newtype Duration = Duration Int
-  deriving (Eq, Generic)
+  deriving (Eq, Generic, Ord)
 
 -- | Shows a 'Duration'
 --
@@ -560,13 +556,7 @@ utcToLocal t = dateTimeFormat . flip utcToLocalTime t <$> getCurrentTimeZone'
 --
 -- @since 0.1.0
 dateTimeFormat :: FormatTime a => a -> String
-dateTimeFormat = formatTime defaultTimeLocale "%F %k:%M"
-
--- | Parse a date and time in the format YYYY-MM-DD HH:MM"
---
--- @since 0.1.0
-parseDateTime :: String -> Maybe UTCTime
-parseDateTime = parseTimeM True defaultTimeLocale "%Y-%-m-%-d %k:%M"
+dateTimeFormat = formatTime defaultTimeLocale "%d.%m.%y %k:%M"
 
 -- | Get the start UTCTime for a proposed start and availabilities
 --
@@ -610,7 +600,7 @@ nextDay x = UTCTime (addDays 1 $ utctDay x) 0
 --
 -- @since 0.1.0
 getAvailabilityForDate :: UTCTime -> Availabilities -> Maybe Availability
-getAvailabilityForDate t = getAvailability (dayOfWeek t)
+getAvailabilityForDate t = getAvailability $ dayOfWeek t
  where
   dayOfWeek x = toEnum . fromInteger $ toModifiedJulianDay (utctDay x) + 3
   getAvailability a (Availabilities b) = case M.lookup a b of
