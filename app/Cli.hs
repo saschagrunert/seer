@@ -33,7 +33,7 @@ import Options.Applicative (Parser
                            ,strArgument
                            ,strOption
                            ,subparser
-                           ,switch
+                           ,value
                            ,(<**>))
 import Seer                (version)
 
@@ -50,6 +50,10 @@ data BasicCommand = Config ConfigCommand
                   | Create CreateCommand
                   | Delete DeleteCommand
                   | Edit EditCommand
+                  | View { viewFrom :: String
+                         , viewTo :: String
+                         , viewResource :: Maybe String
+                         , viewAction :: Maybe String }
 
 -- | Representation of all possible 'get' commands
 --
@@ -63,7 +67,7 @@ data ConfigCommand = GetConfig
 data GetCommand = GetStorages
                 | GetActions
                 | GetResources
-                | GetSchedules Bool -- ^ Specifies if all schedules should be shown
+                | GetSchedules
 
 -- | Representation of all 'create' commands
 --
@@ -162,6 +166,7 @@ basicCommand = subparser
   <> command "create" (info createParser (progDesc "Create an entity"))
   <> command "delete" (info deleteParser (progDesc "Delete an entity"))
   <> command "edit"   (info editParser (progDesc "Edit an entity"))
+  <> command "view"   (info viewParser (progDesc "View the Agenda"))
   )
 
 -- | Parse the 'config' command
@@ -212,17 +217,8 @@ getParser =
                 )
            <> command
                 "schedules"
-                ( info
-                  (    GetSchedules
-                  <$>  switch
-                         (  long "all"
-                         <> short 'a'
-                         <> help
-                              "Show all Schedules instead of the only future ones"
-                         )
-                  <**> helper
-                  )
-                  (progDesc "Show Schedules for the default Storage")
+                ( info (pure GetSchedules <$> helper)
+                       (progDesc "Show Schedules for the default Storage")
                 )
            )
     <**> helper
@@ -591,5 +587,33 @@ editParser =
                   )
                   (progDesc "Edit a Schedule by its number")
                 )
+           )
+    <**> helper
+
+-- | Parse the 'view' command
+--
+-- @since 0.1.0
+viewParser :: Parser BasicCommand
+viewParser =
+  View
+    <$>  strArgument
+           ( metavar "FROM" <> value "now" <> help
+             "The starting date, defaults to the current date"
+           )
+    <*>  strArgument
+           ( metavar "TO" <> value "in 1 week" <> help
+             "The ending date, defaults to the end of the next week"
+           )
+    <*>  optional
+           ( strOption
+             ( long "resource" <> short 'r' <> metavar "RESOURCE" <> help
+               "Optional resource selection"
+             )
+           )
+    <*>  optional
+           ( strOption
+             ( long "action" <> short 'a' <> metavar "ACTION" <> help
+               "Optional action selection"
+             )
            )
     <**> helper

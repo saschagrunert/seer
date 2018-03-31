@@ -11,12 +11,13 @@ module Seer.Time
   , MonadTime
   , TimeSpanString
   , WeekDay(..)
+  , dateTimeFormat
   , dayAvailable
   , dayAvailableFromTo
   , dayNotAvailable
   , dayNotAvailableFromTo
   , dayReserveTime
-  , dateTimeFormat
+  , evaluateDaily
   , evaluateEnd
   , evaluateStart
   , parseDuration
@@ -29,52 +30,53 @@ module Seer.Time
   , weekReserveTime
   ) where
 
-import           Control.Monad        (foldM
-                                      ,mapM)
-import           Data.Aeson.Types     (FromJSONKey
-                                      ,ToJSONKey)
-import           Data.Char            (isDigit)
-import           Data.List            (intercalate)
-import           Data.List.Split      (splitOn)
-import qualified Data.Map.Strict as M (Map
-                                      ,adjust
-                                      ,lookup
-                                      ,fromList
-                                      ,singleton
-                                      ,toList
-                                      ,union
-                                      ,unionsWith)
-import qualified Data.Set as S        (Set
-                                      ,empty
-                                      ,fromList
-                                      ,isSubsetOf
-                                      ,singleton
-                                      ,toList
-                                      ,union
-                                      ,unions
-                                      ,(\\))
-import           Data.Time.Calendar   (addDays
-                                      ,toModifiedJulianDay)
-import           Data.Time.Clock      (UTCTime(UTCTime)
-                                      ,addUTCTime
-                                      ,utctDay
-                                      ,utctDayTime)
-import           Data.Time.Format     (FormatTime
-                                      ,defaultTimeLocale
-                                      ,formatTime)
-import           Data.Time.LocalTime  (TimeOfDay (TimeOfDay)
-                                      ,TimeZone
-                                      ,getCurrentTimeZone
-                                      ,todHour
-                                      ,todMin
-                                      ,utcToLocalTime)
-import           Data.Yaml            (FromJSON
-                                      ,ToJSON)
-import           GHC.Generics         (Generic)
-import           Seer.Manifest        (ToList (headers
-                                              ,toList))
-import           Seer.Utils           (rstrip)
-import           Text.Printf          (printf)
+import           Control.Monad            (foldM
+                                          ,mapM)
+import           Data.Aeson.Types         (FromJSONKey
+                                          ,ToJSONKey)
+import           Data.Char                (isDigit)
+import           Data.List                (intercalate)
+import           Data.List.Split          (splitOn)
+import qualified Data.Map.Strict     as M (Map
+                                          ,adjust
+                                          ,lookup
+                                          ,fromList
+                                          ,singleton
+                                          ,toList
+                                          ,union
+                                          ,unionsWith)
+import qualified Data.Set            as S (Set
+                                          ,empty
+                                          ,fromList
+                                          ,isSubsetOf
+                                          ,singleton
+                                          ,toList
+                                          ,union
+                                          ,unions
+                                          ,(\\))
+import           Data.Time.Calendar       (Day
+                                          ,addDays
+                                          ,toModifiedJulianDay)
+import           Data.Time.Clock          (UTCTime(UTCTime)
+                                          ,addUTCTime
+                                          ,utctDay
+                                          ,utctDayTime)
+import           Data.Time.Format         (FormatTime
+                                          ,defaultTimeLocale
+                                          ,formatTime)
+import           Data.Time.LocalTime      (TimeOfDay (TimeOfDay)
+                                          ,TimeZone
+                                          ,getCurrentTimeZone
+                                          ,todHour
+                                          ,todMin
+                                          ,utcToLocalTime)
+import           Data.Yaml                (FromJSON
+                                          ,ToJSON)
+import           GHC.Generics             (Generic)
+import           Seer.Manifest            (ToList (headers
+                                                  ,toList))
+import           Seer.Utils               (rstrip)
+import           Text.Printf              (printf)
 
 -- | A abstraction Monad to isolate real IO Actions
 --
@@ -558,6 +560,12 @@ utcToLocal t = dateTimeFormat . flip utcToLocalTime t <$> getCurrentTimeZone'
 dateTimeFormat :: FormatTime a => a -> String
 dateTimeFormat = formatTime defaultTimeLocale "%d.%m.%y %k:%M"
 
+-- | The default time formatting output
+--
+-- @since 0.1.0
+timeFormat :: FormatTime a => a -> String
+timeFormat = formatTime defaultTimeLocale "%k:%M"
+
 -- | Get the start UTCTime for a proposed start and availabilities
 --
 -- @since 0.1.0
@@ -569,9 +577,9 @@ evaluateStart _ v | v == weekNotAvailable = Nothing
 evaluateStart t v                         = case getAvailabilityForDate t v of
   Just x -> case startTime t x of
     Just (r, _) -> Just r
-    Nothing     -> evaluateNextDay
-  Nothing -> evaluateNextDay
-  where evaluateNextDay = evaluateStart (nextDay t) v
+    Nothing     -> skipToNextDay
+  Nothing -> skipToNextDay
+  where skipToNextDay = evaluateStart (nextDay t) v
 
 -- | Get the resulting UTCTime for a given start, availabilities and duration
 --
@@ -586,9 +594,9 @@ evaluateEnd t v k                         = case getAvailabilityForDate t v of
   Just x -> case consumeDuration t x k of
     Just (r, Duration 0) -> Just r
     Just (r, n         ) -> evaluateEnd (nextDay r) v n
-    Nothing              -> evaluateNextDay
-  Nothing -> evaluateNextDay
-  where evaluateNextDay = evaluateEnd (nextDay t) v k
+    Nothing              -> skipToNextDay
+  Nothing -> skipToNextDay
+  where skipToNextDay = evaluateEnd (nextDay t) v k
 
 -- | Get the next UTC day beggining from second 0
 --
@@ -607,6 +615,37 @@ getAvailabilityForDate t = getAvailability $ dayOfWeek t
     Just r | r == dayNotAvailable -> Nothing
            | otherwise            -> Just r
     Nothing -> Nothing
+
+-- | Get the resulting Day and String Times for a given start, availabilities
+-- and duration
+--
+-- @since 0.1.0
+evaluateDaily
+  :: UTCTime -> Availabilities -> Duration -> Maybe [(Day, String, String)]
+evaluateDaily t v k = evaluateDailyInternal t v k []
+
+-- | Internal recursive funciton of 'evaluateDaily' with start parameter
+--
+-- @since 0.1.0
+evaluateDailyInternal
+  :: UTCTime        -- ^ The start time
+  -> Availabilities -- ^ The Availabilities of the Resource
+  -> Duration       -- ^ The duration of the Action
+  -> [(Day, String, String)] -- ^ The recusion input
+  -> Maybe [(Day, String, String)]  -- ^ The resulting end time
+evaluateDailyInternal _ v _ _ | v == weekNotAvailable = Nothing
+evaluateDailyInternal t v k z = case getAvailabilityForDate t v of
+  Just x -> case consumeDuration t x k of
+    Just (r, Duration 0) -> Just $ append r x
+    Just (r, n         ) -> evaluateDailyInternal (nextDay r) v n $ append r x
+    Nothing              -> skipToNextDay
+  Nothing -> skipToNextDay
+ where
+  skipToNextDay = evaluateDailyInternal (nextDay t) v k z
+  append r x = z ++ [(utctDay r, getStart t x, timeFormat r)]
+  getStart x a = case startTime x a of
+    Nothing     -> ""
+    Just (o, _) -> timeFormat o
 
 -- | Tries to consume the given duration with the input Availability. The
 -- result is a new time and duration, depending on the availability.

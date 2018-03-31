@@ -13,9 +13,8 @@ It should be possible, to …
 2. …work collaboratively with other Users of the application.
 3. …manage (add/remove/edit) 'Actions', 'Resources', 'Schedules'.
 4. …link 'Actions' and 'Resources' via 'Schedules'.
-5. …display the usage of certain 'Resources'.
-6. …display the schedules for a chosen time interval.
-7. …customize the actual work time slots.
+5. …display the schedules for a chosen time interval.
+6. …customize the actual work time slots.
 
 ### Reference level
 

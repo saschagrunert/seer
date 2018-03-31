@@ -24,107 +24,109 @@ module Seer
   , getStorages
   , setDefaultStorage
   , version
+  , viewAgenda
   ) where
 
-import           Control.Lens           (over
-                                        ,view
-                                        ,(^.)
-                                        ,(%~))
-import           Control.Monad          (mapM
-                                        ,sequence
-                                        ,(>=>))
-import           Data.Bifunctor         (bimap
-                                        ,second)
-import           Data.Either            (isLeft)
-import           Data.Functor.Const     (Const)
-import           Data.List              (isInfixOf
-                                        ,sort
-                                        ,sortBy
-                                        ,transpose)
-import qualified Data.Map.Strict as M   (empty
-                                        ,insertWith)
-import           Data.Time.Calendar     (fromGregorian)
-import           Data.Time.Clock        (UTCTime(UTCTime)
-                                        ,addUTCTime
-                                        ,getCurrentTime)
-import           Data.Time.LocalTime    (TimeZone
-                                        ,getCurrentTimeZone
-                                        ,timeZoneMinutes)
-import           Data.UUID              (UUID)
-import qualified Seer.Action as A       (Action
-                                        ,description
-                                        ,duration
-                                        ,name
-                                        ,new)
-import qualified Seer.Config as C       (Config
-                                        ,new
-                                        ,storage)
-import           Seer.DateParser        (parseDate)
-import           Seer.Manifest          (Manifest
-                                        ,ResourceKind(Action
-                                                     ,Resource)
-                                        ,ToList (headers
-                                                ,toList)
-                                        ,creationTimestamp
-                                        ,metadata
-                                        ,spec
-                                        ,uid)
-import qualified Seer.Resource as R     (Resource
-                                        ,availabilities
-                                        ,description
-                                        ,name
-                                        ,new)
-import qualified Seer.Schedule as S     (Schedule
-                                        ,ScheduleSpec
-                                        ,actionID
-                                        ,resourceID
-                                        ,start
-                                        ,new)
-import           Seer.Storage           (Storage
-                                        ,configExist
-                                        ,editName
-                                        ,editRemote
-                                        ,list
-                                        ,loadActions
-                                        ,loadConfig
-                                        ,loadResources
-                                        ,loadSchedules
-                                        ,new
-                                        ,remove
-                                        ,removeActions
-                                        ,removeResources
-                                        ,removeSchedules
-                                        ,save
-                                        ,saveActions
-                                        ,saveConfig
-                                        ,saveResources
-                                        ,saveSchedules
-                                        ,storageExist)
-import           Seer.Time              (Availabilities
-                                        ,TimeSpanString
-                                        ,WeekDay(Mon
-                                                ,Tue
-                                                ,Wed
-                                                ,Thu
-                                                ,Fri
-                                                ,Sat
-                                                ,Sun)
-                                        ,dateTimeFormat
-                                        ,evaluateEnd
-                                        ,evaluateStart
-                                        ,parseDuration
-                                        ,utcToLocal
-                                        ,weekAvailableFromTo
-                                        ,weekNotAvailable)
-import           Seer.Utils             ((>>-)
-                                        ,rstrip)
-import           System.IO.Error        (ioeGetErrorString)
-import           Text.PrettyPrint.Boxes (hsep
-                                        ,left
-                                        ,render
-                                        ,text
-                                        ,vcat)
-import           Text.Printf            (printf)
+import           Control.Lens               (over
+                                            ,view
+                                            ,(^.)
+                                            ,(%~))
+import           Control.Monad              (mapM
+                                            ,sequence
+                                            ,(>=>))
+import           Data.Bifunctor             (bimap
+                                            ,second)
+import           Data.Either                (isLeft)
+import           Data.Functor.Const         (Const)
+import           Data.List                  (isInfixOf
+                                            ,sort
+                                            ,sortBy
+                                            ,transpose)
+import qualified Data.Map.Strict       as M (empty
+                                            ,insertWith)
+import           Data.Time.Calendar         (fromGregorian)
+import           Data.Time.Clock            (UTCTime(UTCTime)
+                                            ,addUTCTime
+                                            ,getCurrentTime)
+import           Data.Time.LocalTime        (TimeZone
+                                            ,getCurrentTimeZone
+                                            ,timeZoneMinutes)
+import           Data.UUID                  (UUID)
+import qualified Seer.Action           as A (Action
+                                            ,description
+                                            ,duration
+                                            ,name
+                                            ,new)
+import qualified Seer.Config           as C (Config
+                                            ,new
+                                            ,storage)
+import           Seer.DateParser            (parseDate)
+import           Seer.Manifest              (Manifest
+                                            ,ResourceKind(Action
+                                                         ,Resource)
+                                            ,ToList (headers
+                                                    ,toList)
+                                            ,creationTimestamp
+                                            ,metadata
+                                            ,spec
+                                            ,uid)
+import qualified Seer.Resource         as R (Resource
+                                            ,availabilities
+                                            ,description
+                                            ,name
+                                            ,new)
+import qualified Seer.Schedule         as S (Schedule
+                                            ,ScheduleSpec
+                                            ,actionID
+                                            ,resourceID
+                                            ,start
+                                            ,new)
+import           Seer.Storage               (Storage
+                                            ,configExist
+                                            ,editName
+                                            ,editRemote
+                                            ,list
+                                            ,loadActions
+                                            ,loadConfig
+                                            ,loadResources
+                                            ,loadSchedules
+                                            ,new
+                                            ,remove
+                                            ,removeActions
+                                            ,removeResources
+                                            ,removeSchedules
+                                            ,save
+                                            ,saveActions
+                                            ,saveConfig
+                                            ,saveResources
+                                            ,saveSchedules
+                                            ,storageExist)
+import           Seer.Time                  (Availabilities
+                                            ,TimeSpanString
+                                            ,WeekDay(Mon
+                                                    ,Tue
+                                                    ,Wed
+                                                    ,Thu
+                                                    ,Fri
+                                                    ,Sat
+                                                    ,Sun)
+                                            ,dateTimeFormat
+                                            ,evaluateEnd
+                                            ,evaluateStart
+                                            ,parseDuration
+                                            ,utcToLocal
+                                            ,weekAvailableFromTo
+                                            ,weekNotAvailable)
+import           Seer.Utils                 ((>>-)
+                                            ,rstrip)
+import           Seer.View                  (createView)
+import           System.IO.Error            (ioeGetErrorString)
+import           Text.PrettyPrint.Boxes     (hsep
+                                            ,left
+                                            ,render
+                                            ,text
+                                            ,vcat)
+import           Text.Printf                (printf)
 
 -- | The version of the library
 --
@@ -276,6 +278,12 @@ tablify r =
 -- @since 0.1.0
 nf :: String
 nf = "✗ Nothing found"
+
+-- | The default 'Nothing found' return value
+--
+-- @since 0.1.0
+rnf :: MonadSeer m => m (Either Error String)
+rnf = return $ Right nf
 
 -- | The standard message when nothing was done
 --
@@ -432,29 +440,18 @@ uuid :: Manifest s -> UUID
 uuid x = x ^. metadata . uid
 
 -- | List all available Schedules for the default Storage. Evaluates to either
--- a fully formatted table (Right) or an error message (Left). The second
--- argument specifies if all schedules or just the future ones should be shown.
+-- a fully formatted table (Right) or an error message (Left).
 --
 -- @since 0.1.0
-getSchedules
-  :: MonadSeer m
-  => Bool                    -- ^ True if also past schedules should be shown
-  -> m (Either Error String) -- ^ The result
-getSchedules showAll = getAllEntities
+getSchedules :: MonadSeer m => m (Either Error String) -- ^ The result
+getSchedules = getAllEntities
   ( \r a s ->
-    getCurrentTime'
-      >>= (   rows r a s
-          >=> ( \k -> return . Right $ if null k
-                                       then
-                                         nf
-                                       else
-                                         tablify $ header : k
-              )
-          )
+    rows r a s
+      >>= (\k -> return . Right $ if null k then nf else tablify $ header : k)
   )
  where
   header = ["#", "FROM", "TO", "Σ", "RESOURCE", "ACTION", "CREATED"]
-  rows r a s t = mapM
+  rows r a s = mapM
     ( \(i, v) -> do
       cr <- utcToLocal' $ v ^. metadata . creationTimestamp
       let fr = dateTimeFormat $ start v
@@ -467,8 +464,7 @@ getSchedules showAll = getAllEntities
         (x:_, _  ) -> return $ l ++ [n, n, rname x, n, cr]
         (_  , _  ) -> return $ l ++ [n, n, n, n, cr]
     )
-    (zip [1 :: Int ..] . filter (past t) $ sortBy sortStart s)
-  past t x = showAll || start x >= t
+    (zip [1 :: Int ..] $ sortBy sortStart s)
   fuid a = filter ((==) a . uuid)
   e v x y = maybe "" dateTimeFormat $ end (start v) x y
   n = "✗ not available"
@@ -639,40 +635,56 @@ createSchedule f r a =
           parseDateLocal
             f
             ( \parsedDate -> case (resources, actions) of
-              (Left e, _     ) -> leftError e
-              (_     , Left e) -> leftError e
-              (Right rx, Right ax) ->
-                chooseActionAndResource r a rx ax (buildSchedule d parsedDate)
+              (Left e  , _       ) -> leftError e
+              (_       , Left e  ) -> leftError e
+              (Right rx, Right ax) -> chooseActionAndResource
+                r
+                a
+                rx
+                ax
+                (buildSchedule d parsedDate rx ax)
             )
         )
  where
-  isInRange (Just x) y (Just z) | x >= y && x <= z = True
-                                | otherwise        = False
-  isInRange _ _ _ = False
-  buildSchedule d p re ac =
+  datesOverlap newStart (Just newEnd) oldStart (Just oldEnd)
+    | newStart > oldEnd = False
+    | newEnd < oldStart = False
+    | otherwise         = True
+  datesOverlap _ _ _ _ = True
+  buildSchedule d p rx ax re ac =
     case evaluateStart p (re ^. spec . R.availabilities) of
       Nothing -> le "Unable calculate start date"
       Just from ->
-        let e = end from re ac
-        in  logTime from e
-            >>  loadSchedules' d
-            >>| ( \s ->
-                  if not
-                     .   or
-                     $   (\x -> isInRange e (start x) (end (start x) re ac))
-                     <$> filter (\x -> uuid re == x ^. spec . S.resourceID) s
-                  then
-                    newSchedule' from (uuid re) (uuid ac)
-                      >>= saveAndSync saveSchedules'
-                  else
-                    le "The Action is not schedulable at this time"
-                )
+        let
+          e = end from re ac
+        in
+          logTime from e
+          >>  loadSchedules' d
+          >>| ( \s ->
+                if not
+                   .   or
+                   $   ( \x -> datesOverlap
+                         from
+                         e
+                         (start x)
+                         (end (start x) (fre x rx) (fac x ax))
+                       )
+                   <$> filter (\x -> uuid re == x ^. spec . S.resourceID) s
+                then
+                  newSchedule' from (uuid re) (uuid ac)
+                    >>= saveAndSync saveSchedules'
+                else
+                  le "The Action is not schedulable at this time"
+              )
   logTime x (Just y) = log' $ printf "Using calculated date range: %s - %s"
                                      (dateTimeFormat x)
                                      (dateTimeFormat y)
   logTime x _ =
     log' . printf "Unable to calculate end time for start: %s" $ dateTimeFormat
       x
+  fre x rx = head $ fuid (x ^. spec . S.resourceID) rx
+  fac x ax = head $ fuid (x ^. spec . S.actionID) ax
+  fuid x = filter ((==) x . uuid)
 
 -- | Higher order 'Action' and 'Resource' chooser by names.
 --
@@ -903,7 +915,6 @@ editAction n m       d       u       = getAllEntities
       )
   )
  where
-  rnf = return $ Right nf
   chName (Just x) a = spec . A.name %~ const x $ a
   chName _        a = a
   chDesc (Just x) a = spec . A.description %~ const (Just x) $ a
@@ -971,7 +982,6 @@ editResource n m d a = getAllEntities
                   | otherwise = spec . R.availabilities %~ const x $ r
   chAv _ r = r
   newResources x rx = (\y -> if uuid x == uuid y then x else y) <$> rx
-  rnf = return $ Right nf
 
 -- | Edit a 'Schedule' by a given number. Change the actual start, 'Action' or
 -- 'Resource' of the 'Schedule'.
@@ -1027,3 +1037,28 @@ editSchedule s n       r       a       = getAllEntities
   chResource (Just u) x = spec . S.resourceID %~ const (uuid u) $ x
   chResource _        x = x
   newSchedules sx x = (\y -> if uuid x == uuid y then x else y) <$> sx
+
+-- | Retrieve the current agenda in pretty printed form
+--
+-- @since 0.1.0
+viewAgenda
+  :: MonadSeer m
+  => String       -- ^ The starting day
+  -> String       -- ^ The ending day
+  -> Maybe String -- ^ The resource to be filtered
+  -> Maybe String -- ^ The action to be filtered
+  -> m (Either Error String)
+viewAgenda fr to rf af = parseDateLocal
+  fr
+  ( \x -> parseDateLocal
+    to
+    ( \y ->
+      getAllEntities
+          (\rx ax sx -> return . Right $ createView sx rx ax x y rf af)
+        >>= either
+              le
+              ( maybe (le "Unable to create view")
+                      (\r -> if null r then rnf else return (Right r))
+              )
+    )
+  )

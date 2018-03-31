@@ -2,7 +2,7 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 5ebfad8d74ccbd7fb1dded4575a0052af33c19e68fd44adcc20414e76c9cc070
+-- hash: 0945bdba3ca612e058d0b5a5410eb24f93f0c5bbd00dbfae1a379b18c178f884
 
 name:           seer
 version:        0.1.0
@@ -57,6 +57,7 @@ library
       Seer.Storage
       Seer.Time
       Seer.Utils
+      Seer.View
   other-modules:
       Paths_seer
   default-language: Haskell2010
@@ -110,5 +111,6 @@ test-suite seer-test
       TestData
       TimeSpec
       UtilsSpec
+      ViewSpec
       Paths_seer
   default-language: Haskell2010

@@ -27,6 +27,7 @@ import Test.Tasty.Hspec      (testSpec)
 import Test.Tasty.QuickCheck (QuickCheckTests (QuickCheckTests))
 import TimeSpec              (timeProps
                              ,timeSpec)
+import ViewSpec              (viewSpec)
 import UtilsSpec             (utilsProps
                              ,utilsSpec)
 
@@ -52,6 +53,7 @@ unitTests = do
   storageUnitTests    <- testSpec "Storage" storageSpec
   timeUnitTests       <- testSpec "Time" timeSpec
   utilsUnitTests      <- testSpec "Utils" utilsSpec
+  viewUnitTests       <- testSpec "View" viewSpec
   return $ testGroup
     "Unit Tests"
     [ actionUnitTests
@@ -65,6 +67,7 @@ unitTests = do
     , seerUnitTests
     , storageUnitTests
     , utilsUnitTests
+    , viewUnitTests
     ]
 
 moduleTests :: IO TestTree

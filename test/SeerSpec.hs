@@ -42,7 +42,6 @@ import TestData                     (testAction
                                     ,testSchedule
                                     ,testScheduleAfter
                                     ,testTime
-                                    ,testTime2000
                                     ,testResource)
 import Test.Tasty.Hspec             (Spec
                                     ,it
@@ -227,7 +226,7 @@ seerSpec = parallel $ do
     isLeft result `shouldBe` True
 
   it "should succeed to get Schedules" $ do
-    let result = unTestFixture (getSchedules True) fixture
+    let result = unTestFixture getSchedules fixture
     result
       `shouldBe` Right
                    "#  FROM            TO              Σ   RESOURCE  ACTION  CREATED\n\
@@ -237,14 +236,14 @@ seerSpec = parallel $ do
 
   it "should fail to get Schedules if Config load fails" $ do
     let ff     = def { _loadConfig' = return testError }
-    let result = unTestFixture (getSchedules True) ff
+    let result = unTestFixture getSchedules ff
     isLeft result `shouldBe` True
 
   it "should fail to get Schedules if Schedule load fails" $ do
     let ff = def { _loadConfig'    = return $ Right testConfig
                  , _loadSchedules' = crError
                  }
-    let result = unTestFixture (getSchedules True) ff
+    let result = unTestFixture getSchedules ff
     isLeft result `shouldBe` True
 
   it "should fail to get Schedules if Action load fails" $ do
@@ -253,7 +252,7 @@ seerSpec = parallel $ do
                  , _loadResources' = crR $ replicate 3 testResource
                  , _loadActions'   = crError
                  }
-    let result = unTestFixture (getSchedules True) ff
+    let result = unTestFixture getSchedules ff
     isLeft result `shouldBe` True
 
   it "should fail to get Schedules if Resource load fails" $ do
@@ -261,19 +260,8 @@ seerSpec = parallel $ do
                  , _loadSchedules' = crR $ replicate 3 testSchedule
                  , _loadResources' = crError
                  }
-    let result = unTestFixture (getSchedules True) ff
+    let result = unTestFixture getSchedules ff
     isLeft result `shouldBe` True
-
-  it "should succeed to get Schedules if no upcoming Schedule is available" $ do
-    let ff = def { _loadConfig'     = return $ Right testConfig
-                 , _loadSchedules'  = crR $ replicate 3 testSchedule
-                 , _loadResources'  = crR $ replicate 3 testResource
-                 , _loadActions'    = crR $ replicate 3 testAction
-                 , _utcToLocal'     = cr ""
-                 , _getCurrentTime' = return testTime2000
-                 }
-    let result = unTestFixture (getSchedules False) ff
-    result `shouldBe` Right "✗ Nothing found"
 
   it "should succeed to create a new Storage without a remote" $ do
     let result = unTestFixture (createStorage "test" Nothing) fixture

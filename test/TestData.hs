@@ -11,7 +11,6 @@ module TestData
   , testScheduleAfter
   , testMetadata
   , testTime
-  , testTime2000
   , testError
   ) where
 
@@ -67,7 +66,10 @@ testScheduleAfter = newManifest
   V1
   Schedule
   (testMetadata 4)
-  (S.newSpec testTimeAfter (buildFromWords 3 0 0 0 0) (buildFromWords 1 0 0 0 0))
+  ( S.newSpec testTimeAfter
+              (buildFromWords 3 0 0 0 0)
+              (buildFromWords 1 0 0 0 0)
+  )
 
 testMetadata :: Word8 -> Metadata
 testMetadata x = newMetadata testTime (buildFromWords x 0 0 0 0)
@@ -77,9 +79,6 @@ testTime = UTCTime {utctDay = fromGregorian 0 0 0, utctDayTime = 0}
 
 testTimeAfter :: UTCTime
 testTimeAfter = UTCTime {utctDay = fromGregorian 0 0 0, utctDayTime = 5 * 60}
-
-testTime2000 :: UTCTime
-testTime2000 = UTCTime {utctDay = fromGregorian 0 0 2000, utctDayTime = 0}
 
 testError :: Either IOError b
 testError = Left $ userError "failure"

@@ -29,6 +29,7 @@ import Seer.Time                    (Duration(Duration)
                                     ,dayNotAvailableFromTo
                                     ,dayReserveTime
                                     ,dateTimeFormat
+                                    ,evaluateDaily
                                     ,evaluateEnd
                                     ,evaluateStart
                                     ,toList
@@ -144,8 +145,6 @@ timeProps = testGroup
 -- Unit tests
 timeSpec :: Spec
 timeSpec = parallel $ do
-
-
   it "should succeed to set daily availability"
     $          return dayAvailable
     `shouldBe` dayAvailableFromTo ["0-0"]
@@ -554,4 +553,42 @@ timeSpec = parallel $ do
 
   it "should fail to evaluate start time with no availability"
     $ evaluateStart (UTCTime (fromGregorian 0 0 0) 5400) weekNotAvailable
+    `shouldBe` Nothing
+
+  it "should succeed to evaluate daily just fitting"
+    $          ( evaluateDaily (UTCTime (fromGregorian 0 0 0) 0)
+                               (fromJust $ weekAvailableFromTo [(Mon, "1-2")])
+                               (Duration 60)
+               )
+    `shouldBe` Just [(fromGregorian 0 0 3, " 1:00", " 2:00")]
+
+  it "should succeed to evaluate daily just fitting different time"
+    $ ( evaluateDaily (UTCTime (fromGregorian 0 0 0) 0)
+                      (fromJust $ weekAvailableFromTo [(Fri, "18:32-18:45")])
+                      (Duration 13)
+      )
+    `shouldBe` Just [(fromGregorian 0 0 7, "18:32", "18:45")]
+
+  it "should succeed to evaluate end time not fitting to next week"
+    $          ( evaluateDaily (UTCTime (fromGregorian 0 0 0) 0)
+                               (fromJust $ weekAvailableFromTo [(Mon, "1-2")])
+                               (Duration 70)
+               )
+    `shouldBe` Just
+                 [ (fromGregorian 0 0 3 , " 1:00", " 2:00")
+                 , (fromGregorian 0 0 10, " 1:00", " 1:10")
+                 ]
+
+  it "should succeed to evaluate end time with offset"
+    $          ( evaluateDaily (UTCTime (fromGregorian 2018 0 8) 5400)
+                               (fromJust $ weekAvailableFromTo [(Mon, "1-2")])
+                               (Duration 30)
+               )
+    `shouldBe` Just [(fromGregorian 2018 0 8, " 1:30", " 2:00")]
+
+  it "should fail to evaluate daily if not available"
+    $          ( evaluateDaily (UTCTime (fromGregorian 0 0 0) 0)
+                               weekNotAvailable
+                               (Duration 60)
+               )
     `shouldBe` Nothing

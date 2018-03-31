@@ -11,7 +11,8 @@ import Cli                 (Args (Args)
                                          ,Create
                                          ,Delete
                                          ,Edit
-                                         ,Get)
+                                         ,Get
+                                         ,View)
                            ,ConfigCommand (GetConfig
                                           ,SetStorage)
                            ,CreateCommand (CreateAction
@@ -56,7 +57,8 @@ import Seer                (createAction
                            ,getResources
                            ,getSchedules
                            ,getStorages
-                           ,setDefaultStorage)
+                           ,setDefaultStorage
+                           ,viewAgenda)
 import System.Console.ANSI (ConsoleLayer (Foreground)
                            ,Color (Red)
                            ,ColorIntensity (Vivid)
@@ -100,10 +102,11 @@ run (Args (Edit   (EditSchedule s n r a))) = call $ editSchedule s n r a
 run (Args (Edit (EditResource x n d m t w h f s u))) =
   call $ editResource x n d (m, t, w, h, f, s, u)
 run (Args (Edit (EditStorage n m r))) = call $ editStorage n m r
-run (Args (Get  (GetSchedules a   ))) = call $ getSchedules a
+run (Args (Get  GetSchedules       )) = call getSchedules
 run (Args (Get  GetActions         )) = call getActions
 run (Args (Get  GetResources       )) = call getResources
 run (Args (Get  GetStorages        )) = call getStorages
+run (Args (View f t r a            )) = call $ viewAgenda f t r a
 
 -- | Call a function and print the result.
 --
