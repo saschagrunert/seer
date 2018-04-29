@@ -120,6 +120,6 @@ call f = f >>= either exitError putStrLn
 exitError :: String -> IO ()
 exitError e =
   setSGR [SetColor Foreground Vivid Red]
-    >> putStrLn ("✗ " ++ e)
+    >> putStrLn ("✗ Error: " ++ e)
     >> setSGR [Reset]
     >> exitFailure

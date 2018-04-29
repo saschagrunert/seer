@@ -17,8 +17,7 @@ import ResourceSpec          (resourceProps
                              ,resourceSpec)
 import ScheduleSpec          (scheduleSpec)
 import SeerSpec              (seerSpec)
-import StorageSpec           (storageSpec
-                             ,storageModuleSpec)
+import StorageSpec           (storageSpec)
 import Test.Tasty            (TestTree
                              ,defaultMain
                              ,localOption
@@ -35,8 +34,7 @@ import UtilsSpec             (utilsProps
 main :: IO ()
 main = do
   uTests <- unitTests
-  mTests <- moduleTests
-  defaultMain . opts $ testGroup "Tests" [uTests, properties, mTests]
+  defaultMain . opts $ testGroup "Tests" [uTests, properties]
   where opts = localOption $ QuickCheckTests 5000
 
 -- Unit tests based on hspec
@@ -69,11 +67,6 @@ unitTests = do
     , utilsUnitTests
     , viewUnitTests
     ]
-
-moduleTests :: IO TestTree
-moduleTests = do
-  storageModuleTests <- testSpec "Storage" storageModuleSpec
-  return $ testGroup "Module Tests" [storageModuleTests]
 
 -- Property tests based on quickcheck and smallcheck
 properties :: TestTree

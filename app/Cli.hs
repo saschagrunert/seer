@@ -288,7 +288,7 @@ createParser =
                          ( strOption
                            (  long "mon"
                            <> short 'm'
-                           <> metavar "HH:MM-HH:MM"
+                           <> metavar "HH[:MM]-HH[:MM]"
                            <> help "Monday availability"
                            )
                          )
@@ -296,7 +296,7 @@ createParser =
                          ( strOption
                            (  long "tue"
                            <> short 't'
-                           <> metavar "HH:MM-HH:MM"
+                           <> metavar "HH[:MM]-HH[:MM]"
                            <> help "Tuesday availability"
                            )
                          )
@@ -304,7 +304,7 @@ createParser =
                          ( strOption
                            (  long "wed"
                            <> short 'w'
-                           <> metavar "HH:MM-HH:MM"
+                           <> metavar "HH[:MM]-HH[:MM]"
                            <> help "Wednesday availability"
                            )
                          )
@@ -312,7 +312,7 @@ createParser =
                          ( strOption
                            (  long "thu"
                            <> short 'h'
-                           <> metavar "HH:MM-HH:MM"
+                           <> metavar "HH[:MM]-HH[:MM]"
                            <> help "Thursday availability"
                            )
                          )
@@ -320,7 +320,7 @@ createParser =
                          ( strOption
                            (  long "fri"
                            <> short 'f'
-                           <> metavar "HH:MM-HH:MM"
+                           <> metavar "HH[:MM]-HH[:MM]"
                            <> help "Friday availability"
                            )
                          )
@@ -328,7 +328,7 @@ createParser =
                          ( strOption
                            (  long "sat"
                            <> short 's'
-                           <> metavar "HH:MM-HH:MM"
+                           <> metavar "HH[:MM]-HH[:MM]"
                            <> help "Saturday availability"
                            )
                          )
@@ -336,7 +336,7 @@ createParser =
                          ( strOption
                            (  long "sun"
                            <> short 'u'
-                           <> metavar "HH:MM-HH:MM"
+                           <> metavar "HH[:MM]-HH[:MM]"
                            <> help "Sunday availability"
                            )
                          )
@@ -498,7 +498,7 @@ editParser =
                          ( strOption
                            (  long "mon"
                            <> short 'm'
-                           <> metavar "HH:MM-HH:MM"
+                           <> metavar "HH[:MM]-HH[:MM]"
                            <> help "The new Monday availability"
                            )
                          )
@@ -506,7 +506,7 @@ editParser =
                          ( strOption
                            (  long "tue"
                            <> short 't'
-                           <> metavar "HH:MM-HH:MM"
+                           <> metavar "HH[:MM]-HH[:MM]"
                            <> help "The new Tuesday availability"
                            )
                          )
@@ -514,7 +514,7 @@ editParser =
                          ( strOption
                            (  long "wed"
                            <> short 'w'
-                           <> metavar "HH:MM-HH:MM"
+                           <> metavar "HH[:MM]-HH[:MM]"
                            <> help "The new Wednesday availability"
                            )
                          )
@@ -522,7 +522,7 @@ editParser =
                          ( strOption
                            (  long "thu"
                            <> short 'h'
-                           <> metavar "HH:MM-HH:MM"
+                           <> metavar "HH[:MM]-HH[:MM]"
                            <> help "The new Thursday availability"
                            )
                          )
@@ -530,7 +530,7 @@ editParser =
                          ( strOption
                            (  long "fri"
                            <> short 'f'
-                           <> metavar "HH:MM-HH:MM"
+                           <> metavar "HH[:MM]-HH[:MM]"
                            <> help "The new Friday availability"
                            )
                          )
@@ -538,7 +538,7 @@ editParser =
                          ( strOption
                            (  long "sat"
                            <> short 's'
-                           <> metavar "HH:MM-HH:MM"
+                           <> metavar "HH[:MM]-HH[:MM]"
                            <> help "The new Saturday availability"
                            )
                          )
@@ -546,7 +546,7 @@ editParser =
                          ( strOption
                            (  long "sun"
                            <> short 'u'
-                           <> metavar "HH:MM-HH:MM"
+                           <> metavar "HH[:MM]-HH[:MM]"
                            <> help "The new Sunday availability"
                            )
                          )

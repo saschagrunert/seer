@@ -2,7 +2,7 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 0945bdba3ca612e058d0b5a5410eb24f93f0c5bbd00dbfae1a379b18c178f884
+-- hash: ffd0dc10edd89f8d43eaf066b19609f7bb99d53fff0e5d9829c736d69acefc9f
 
 name:           seer
 version:        0.1.0
@@ -13,7 +13,7 @@ homepage:       https://github.com/saschagrunert/seer#readme
 bug-reports:    https://github.com/saschagrunert/seer/issues
 author:         Sascha Grunert
 maintainer:     mail@saschagrunert.de
-copyright:      Copyright (c) 2018 Sascha Grunert
+copyright:      2018 Sascha Grunert
 license:        MIT
 license-file:   LICENSE
 tested-with:    GHC == 8.0.2, GHC == 8.2.2
@@ -62,8 +62,11 @@ library
       Paths_seer
   default-language: Haskell2010
 
-executable seer-exe
+executable seer
   main-is: Main.hs
+  other-modules:
+      Cli
+      Paths_seer
   hs-source-dirs:
       app
   ghc-options: -rtsopts -threaded -with-rtsopts=-N -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints
@@ -72,9 +75,6 @@ executable seer-exe
     , base >=4.7 && <5
     , optparse-applicative
     , seer
-  other-modules:
-      Cli
-      Paths_seer
   default-language: Haskell2010
 
 test-suite seer-test

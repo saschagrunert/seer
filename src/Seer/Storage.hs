@@ -23,6 +23,7 @@ module Seer.Storage
   , saveConfig
   , saveResources
   , saveSchedules
+  , sync
   , storageExist
   ) where
 
@@ -377,7 +378,12 @@ loadFile
   => FilePath             -- ^ The location of the file to be parsed
   -> m (Either IOError a) -- ^ The result
 loadFile a =
-  first (userError . prettyPrintParseException) <$> decodeFileEither' a
+  first
+      ( userError
+      . map (\c -> if c == '\n' then ' ' else c)
+      . prettyPrintParseException
+      )
+    <$> decodeFileEither' a
 
 -- | Load all files for the given name of the storage
 --

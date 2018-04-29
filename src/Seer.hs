@@ -1,4 +1,4 @@
--- | This module everything related to the main library interface
+-- | This module contains everything related to the main library interface
 --
 -- @since 0.1.0
 
@@ -100,6 +100,7 @@ import           Seer.Storage               (Storage
                                             ,saveConfig
                                             ,saveResources
                                             ,saveSchedules
+                                            ,sync
                                             ,storageExist)
 import           Seer.Time                  (Availabilities
                                             ,TimeSpanString
@@ -164,6 +165,7 @@ class Monad m => MonadSeer m where
   saveConfig' :: C.Config -> m (Either IOError ())
   saveResources' :: Storage -> [R.Resource] -> m (Either IOError ())
   saveSchedules' :: Storage -> [S.Schedule] -> m (Either IOError ())
+  sync' :: Storage -> m (Either IOError ())
   storageExist' :: Storage -> m (Either IOError Bool)
   utcToLocal' :: UTCTime -> m String
 
@@ -197,6 +199,7 @@ instance MonadSeer IO where
   saveConfig' = saveConfig
   saveResources' = saveResources
   saveSchedules' = saveSchedules
+  sync' = sync
   storageExist' = storageExist
   utcToLocal' = utcToLocal
 
@@ -323,7 +326,9 @@ setDefaultStorage n = storageExist' n >>| f
 --
 -- @since 0.1.0
 getDefaultStorage :: MonadSeer m => m (Either IOError String)
-getDefaultStorage = second (view $ spec . C.storage) <$> loadConfig'
+getDefaultStorage = second (view $ spec . C.storage) <$> loadConfig' >>= either
+  (return . Left)
+  (\r -> sync' r >>= (const . return $ Right r))
 
 -- | List all available Storages if possible. Evaluates to either a fully
 -- formatted table (Right) or an error message (Left).
@@ -510,7 +515,7 @@ saveAndSync
   => (String -> f a -> m (Either IOError b)) -- ^ The entity save function
   -> a                                       -- ^ The entity to be saved
   -> m (Either Error String)                 -- ^ The result
-saveAndSync f x = getDefaultStorage >>| (\s -> f s (pure x) >>| sync s)
+saveAndSync f x = getDefaultStorage >>| (\s -> f s (pure x) >>| syncStorage s)
 
 -- | A convenience remove and sync.
 --
@@ -520,13 +525,13 @@ removeAndSync
   => (String -> t -> m (Either IOError a)) -- ^ The removal function
   -> t                                     -- ^ The element to be removed
   -> m (Either Error String)               -- ^ The result
-removeAndSync f x = getDefaultStorage >>| (\s -> f s x >>| sync s)
+removeAndSync f x = getDefaultStorage >>| (\s -> f s x >>| syncStorage s)
 
--- | A convenience sync.
+-- | A convenience syncStorage.
 --
 -- @since 0.1.0
-sync :: MonadSeer m => Storage -> a -> m (Either Error String)
-sync s = const . bimapIOErrorDone $ save' s
+syncStorage :: MonadSeer m => Storage -> a -> m (Either Error String)
+syncStorage s = const . bimapIOErrorDone $ save' s
 
 -- | Create a new 'Action' for a given name, description and duration.
 --
